@@ -338,7 +338,7 @@ function ArcPayrollInner() {
                     <span style={{color:"#2e5070"}}>How it works: </span>
                     your wallet signs off-chain → contract verifies on Arc Testnet → USDC transferred trustlessly
                   </div>
-                  <button className="submit-btn" onClick={handlePayment} disabled={txState!=="idle"||!form.to||!form.amount}>
+                  <button className="submit-btn" onClick={handlePayment} >
                     {txState==="signing"?<><span className="spinning">◌</span> Signing…</>:txState==="pending"?<><span className="spinning">◌</span> Broadcasting…</>:"Sign & Send Payment →"}
                   </button>
                 </div>
