@@ -144,7 +144,7 @@ function ArcPayrollInner() {
 
   const handlePayment = useCallback(async () => {
     if (!isConnected || !walletClient || !publicClient || !address || !form.to || !form.amount) return;
-    setTxState("signing"); setTxError("");
+    alert("debug: " + JSON.stringify({isConnected, hasWallet: !!walletClient, hasPublic: !!publicClient, address, to: form.to, amount: form.amount})); setTxState("signing"); setTxError("");
     try {
       const amount  = parseUnits(form.amount, 6);
       const nonce   = BigInt(Date.now());
