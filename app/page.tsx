@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { WagmiProvider, createConfig, http, useAccount, useWalletClient, usePublicClient, useConnect, useDisconnect } from "wagmi";
-import { injected } from "@wagmi/connectors";
+import { injected, walletConnect } from "@wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { keccak256, encodePacked, toBytes, parseUnits } from "viem";
 
@@ -16,7 +16,7 @@ const arcTestnet = {
 
 const config = createConfig({
   chains: [arcTestnet],
-  connectors: [injected()],
+  connectors: [injected(), walletConnect({ projectId: "16ae252cb60ef79babb68adf4ca2f23d" })],
   transports: { [arcTestnet.id]: http() },
 });
 
@@ -108,7 +108,7 @@ function WalletBar() {
   }, [address, publicClient]);
 
   if (!isConnected) return (
-    <button className="connect-btn" onClick={() => connect({ connector: connectors[0] })}>
+    <button className="connect-btn" onClick={() => connect({ connector: connectors[1] })}>
       Connect Wallet
     </button>
   );
