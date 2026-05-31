@@ -1,10 +1,9 @@
 "use client"
-
 import { useState, useEffect, useCallback } from "react";
 import { WagmiProvider, createConfig, http, useAccount, useWalletClient, usePublicClient, useConnect, useDisconnect } from "wagmi";
 import { injected, walletConnect } from "@wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { keccak256, encodePacked, toBytes, parseUnits } from "viem";
+import { parseUnits } from "viem";
 
 const arcTestnet = {
   id: 5042002,
@@ -12,30 +11,43 @@ const arcTestnet = {
   nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
   rpcUrls: { default: { http: ["https://rpc.testnet.arc.network"] } },
   blockExplorers: { default: { name: "ArcScan", url: "https://testnet.arcscan.app" } },
-};
+} as const;
 
 const config = createConfig({
   chains: [arcTestnet],
   connectors: [injected(), walletConnect({ projectId: "16ae252cb60ef79babb68adf4ca2f23d" })],
   transports: { [arcTestnet.id]: http() },
 });
-
 const queryClient = new QueryClient();
 
-const SCHEDULER_ADDRESS = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa";
-const USDC_ADDRESS      = "0x3600000000000000000000000000000000000000";
+const SCHEDULER = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa" as const;
+const USDC      = "0x3600000000000000000000000000000000000000" as const;
 
 const SCHEDULER_ABI = [
-  { type:"function", name:"executeX402Payment",
-    inputs:[{ name:"req", type:"tuple", components:[
-      { name:"payer",     type:"address" },
-      { name:"merchant",  type:"address" },
-      { name:"amount",    type:"uint256" },
-      { name:"expiry",    type:"uint256" },
-      { name:"nonce",     type:"uint256" },
-      { name:"signature", type:"bytes"   },
-    ]}], outputs:[] },
-];
+  { type:"function", name:"createSchedule",
+    inputs:[{name:"recipient",type:"address"},{name:"amount",type:"uint256"},{name:"interval",type:"uint256"},{name:"label",type:"string"}],
+    outputs:[{name:"",type:"uint96"}] },
+  { type:"function", name:"executeSchedule",
+    inputs:[{name:"owner",type:"address"},{name:"index",type:"uint256"}],
+    outputs:[{name:"txRef",type:"bytes32"}] },
+  { type:"function", name:"canExecute",
+    inputs:[{name:"owner",type:"address"},{name:"index",type:"uint256"}],
+    outputs:[{name:"ok",type:"bool"},{name:"reason",type:"string"}] },
+  { type:"function", name:"getSchedules",
+    inputs:[{name:"owner",type:"address"}],
+    outputs:[{name:"",type:"tuple[]",components:[
+      {name:"id",type:"uint96"},{name:"recipient",type:"address"},
+      {name:"amount",type:"uint256"},{name:"interval",type:"uint256"},
+      {name:"nextExecution",type:"uint256"},{name:"active",type:"bool"},
+      {name:"label",type:"string"},
+    ]}] },
+  { type:"function", name:"addToWhitelist",
+    inputs:[{name:"addr",type:"address"}], outputs:[] },
+  { type:"function", name:"toggleSchedule",
+    inputs:[{name:"index",type:"uint256"}], outputs:[] },
+  { type:"function", name:"weeklyRemaining",
+    inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"uint256"}] },
+] as const;
 
 const USDC_ABI = [
   { type:"function", name:"approve",
@@ -47,42 +59,24 @@ const USDC_ABI = [
   { type:"function", name:"balanceOf",
     inputs:[{name:"account",type:"address"}],
     outputs:[{type:"uint256"}] },
-];
+] as const;
 
-const MOCK_HISTORY = [
-  { id:1, to:"0xA3f1...9B2c", amount:"4,200.00", interval:"Monthly",   status:"confirmed", ts:"2026-05-30 09:14" },
-  { id:2, to:"0xD84a...1F7e", amount:"3,800.00", interval:"Monthly",   status:"confirmed", ts:"2026-05-30 09:13" },
-  { id:3, to:"0xB12c...4A3d", amount:"5,100.00", interval:"Bi-weekly", status:"confirmed", ts:"2026-05-16 08:00" },
-  { id:4, to:"0xF77b...2C1a", amount:"2,950.00", interval:"Weekly",    status:"pending",   ts:"2026-06-01 00:00" },
+const INTERVALS = [
+  { label:"Weekly",     seconds: 604800  },
+  { label:"Bi-weekly",  seconds: 1209600 },
+  { label:"Monthly",    seconds: 2592000 },
+  { label:"Quarterly",  seconds: 7776000 },
 ];
-
-const INITIAL_SCHEDULED = [
-  { id:1, to:"0xA3f1...9B2c", label:"Alice M.", amount:"4,200.00", interval:"Monthly",   next:"Jun 30" },
-  { id:2, to:"0xD84a...1F7e", label:"Bob R.",   amount:"3,800.00", interval:"Monthly",   next:"Jun 30" },
-  { id:3, to:"0xF77b...2C1a", label:"Carol T.", amount:"2,950.00", interval:"Weekly",    next:"Jun 7"  },
-];
-
-const INTERVALS = ["Weekly", "Bi-weekly", "Monthly", "Quarterly"];
 
 function shortAddr(addr: string) {
-  if (!addr) return "";
-  return addr.slice(0,6) + "..." + addr.slice(-4);
+  return addr ? addr.slice(0,6)+"..."+addr.slice(-4) : "";
 }
-
-type TxState = "idle"|"signing"|"pending"|"success"|"error";
-interface ScheduledRow { id:number; to:string; label:string; amount:string; interval:string; next:string; }
-interface HistoryRow   { id:number; to:string; amount:string; interval:string; status:string; ts:string; }
-function StatusPill({ status }: { status: string }) {
-  const cfg: Record<string,{color:string;label:string}> = {
-    confirmed: { color:"#00e5a0", label:"Confirmed" },
-    pending:   { color:"#ffd166", label:"Pending"   },
-    failed:    { color:"#ff4d6d", label:"Failed"    },
-  };
-  const s = cfg[status] || { color:"#888", label:status };
+type TxState = "idle"|"approving"|"creating"|"executing"|"success"|"error";
+function StatusPill({ active }: { active: boolean }) {
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:s.color+"18", color:s.color, borderRadius:4, padding:"2px 9px", fontSize:11, fontWeight:600, letterSpacing:"0.06em" }}>
-      <span style={{ width:5, height:5, borderRadius:"50%", background:s.color, display:"inline-block" }} />
-      {s.label}
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:(active?"#00e5a0":"#ff4d6d")+"18", color:active?"#00e5a0":"#ff4d6d", borderRadius:4, padding:"2px 9px", fontSize:11, fontWeight:600 }}>
+      <span style={{ width:5, height:5, borderRadius:"50%", background:active?"#00e5a0":"#ff4d6d", display:"inline-block" }}/>
+      {active ? "Active" : "Paused"}
     </span>
   );
 }
@@ -96,19 +90,13 @@ function WalletBar() {
 
   useEffect(() => {
     if (!address || !publicClient) return;
-    publicClient.readContract({
-      address: USDC_ADDRESS as `0x${string}`,
-      abi: USDC_ABI,
-      functionName: "balanceOf",
-      args: [address],
-    }).then((raw: unknown) => {
-      const val = Number(raw as bigint) / 1_000_000;
-      setBalance(val.toLocaleString("en-US", { minimumFractionDigits:2 }));
-    }).catch(() => setBalance(null));
+    (publicClient.readContract({ address:USDC, abi:USDC_ABI, functionName:"balanceOf", args:[address] }) as Promise<bigint>)
+      .then(raw => setBalance((Number(raw)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2})))
+      .catch(()=>setBalance(null));
   }, [address, publicClient]);
 
   if (!isConnected) return (
-    <button className="connect-btn" onClick={() => connect({ connector: connectors[1] })}>
+    <button className="connect-btn" onClick={()=>connect({ connector: connectors[1] ?? connectors[0] })}>
       Connect Wallet
     </button>
   );
@@ -118,91 +106,119 @@ function WalletBar() {
         <div style={{ fontSize:11, color:"#3dd6f5", fontWeight:500 }}>{shortAddr(address!)}</div>
         <div style={{ fontSize:10, color:"#2e5070" }}>{balance ?? "..."} USDC</div>
       </div>
-      <button className="disconnect-btn" onClick={() => disconnect()}>✕</button>
+      <button className="disconnect-btn" onClick={()=>disconnect()}>✕</button>
     </div>
   );
 }
 
 function ArcPayrollInner() {
-  const { address, isConnected }   = useAccount();
-  const { data: walletClient }     = useWalletClient();
-  const publicClient               = usePublicClient();
+  const { address, isConnected }  = useAccount();
+  const { data: walletClient }    = useWalletClient();
+  const publicClient              = usePublicClient();
 
-  const [activeTab, setActiveTab]  = useState("dashboard");
-  const [scanLine,  setScanLine]   = useState(0);
-  const [form, setForm]            = useState({ to:"", amount:"", interval:"Monthly" });
-  const [txState, setTxState]      = useState<TxState>("idle");
-  const [txHash,  setTxHash]       = useState("");
-  const [txError, setTxError]      = useState("");
-  const [schedForm, setSchedForm]  = useState({ to:"", label:"", amount:"", interval:"Monthly" });
-  const [scheduled, setScheduled]  = useState<ScheduledRow[]>(INITIAL_SCHEDULED);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [scanLine,  setScanLine]  = useState(0);
+  const [txState,   setTxState]   = useState<TxState>("idle");
+  const [txHash,    setTxHash]    = useState("");
+  const [txError,   setTxError]   = useState("");
+
+  // on-chain schedules
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [weeklyLeft, setWeeklyLeft] = useState<string|null>(null);
+
+  // create form
+  const [form, setForm] = useState({ to:"", amount:"", interval:2592000, label:"" });
 
   useEffect(() => {
-    const t = setInterval(() => setScanLine(s => (s+1)%100), 60);
-    return () => clearInterval(t);
+    const t = setInterval(()=>setScanLine(s=>(s+1)%100), 60);
+    return ()=>clearInterval(t);
   }, []);
 
-  const handlePayment = useCallback(async () => {
-    if (!isConnected || !walletClient || !publicClient || !address || !form.to || !form.amount) return;
-    alert("debug: " + JSON.stringify({isConnected, hasWallet: !!walletClient, hasPublic: !!publicClient, address, to: form.to, amount: form.amount})); setTxState("signing"); setTxError("");
+  const fetchSchedules = useCallback(async () => {
+    if (!address || !publicClient) return;
     try {
-      const amount  = parseUnits(form.amount, 6);
-      const nonce   = BigInt(Date.now());
-      const expiry  = BigInt(Math.floor(Date.now()/1000) + 300);
-
-      const innerHash = keccak256(encodePacked(
-        ["address","address","uint256","uint256","uint256"],
-        [address, form.to as `0x${string}`, amount, expiry, nonce]
-      ));
-      const sig = await walletClient.signMessage({ message: { raw: toBytes(innerHash) } });
-
-      const allowance = await publicClient.readContract({
-        address: USDC_ADDRESS as `0x${string}`,
-        abi: USDC_ABI,
-        functionName: "allowance",
-        args: [address, SCHEDULER_ADDRESS as `0x${string}`],
+      const rows = await publicClient.readContract({
+        address:SCHEDULER, abi:SCHEDULER_ABI,
+        functionName:"getSchedules", args:[address],
+      }) as any[];
+      setSchedules(rows);
+      const rem = await publicClient.readContract({
+        address:SCHEDULER, abi:SCHEDULER_ABI,
+        functionName:"weeklyRemaining", args:[address],
       }) as bigint;
+      setWeeklyLeft((Number(rem)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2}));
+    } catch(e) { console.error(e); }
+  }, [address, publicClient]);
 
-      if (allowance < amount) {
+  useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
+
+  // Create a new schedule
+  const handleCreate = useCallback(async () => {
+    if (!isConnected||!walletClient||!publicClient||!address||!form.to||!form.amount) return;
+    setTxState("approving"); setTxError("");
+    try {
+      const amount = parseUnits(form.amount, 6);
+      const allowance = await publicClient.readContract({
+        address:USDC, abi:USDC_ABI, functionName:"allowance",
+        args:[address, SCHEDULER],
+      }) as bigint;
+      if (allowance < amount * 100n) {
         const ah = await walletClient.writeContract({
-          address: USDC_ADDRESS as `0x${string}`,
-          abi: USDC_ABI,
-          functionName: "approve",
-          args: [SCHEDULER_ADDRESS as `0x${string}`, parseUnits("1000000", 6)],
+          address:USDC, abi:USDC_ABI, functionName:"approve",
+          args:[SCHEDULER, parseUnits("1000000", 6)],
         });
-        await publicClient.waitForTransactionReceipt({ hash: ah });
+        await publicClient.waitForTransactionReceipt({ hash:ah });
       }
-
-      setTxState("pending");
+      setTxState("creating");
       const hash = await walletClient.writeContract({
-        address: SCHEDULER_ADDRESS as `0x${string}`,
-        abi: SCHEDULER_ABI,
-        functionName: "executeX402Payment",
-        args: [{ payer: address, merchant: form.to as `0x${string}`, amount, expiry, nonce, signature: sig as `0x${string}` }],
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"createSchedule",
+        args:[form.to as `0x${string}`, amount, BigInt(form.interval), form.label||"Employee"],
       });
       await publicClient.waitForTransactionReceipt({ hash });
       setTxHash(hash);
       setTxState("success");
-      setTimeout(() => { setTxState("idle"); setTxHash(""); setForm({ to:"", amount:"", interval:"Monthly" }); }, 6000);
-    } catch (e: unknown) {
+      await fetchSchedules();
+      setTimeout(()=>{ setTxState("idle"); setTxHash(""); setForm({to:"",amount:"",interval:2592000,label:""}); }, 6000);
+    } catch(e:unknown) {
       setTxError(e instanceof Error ? e.message : "Transaction failed");
       setTxState("error");
-      setTimeout(() => setTxState("idle"), 4000);
+      setTimeout(()=>setTxState("idle"), 5000);
     }
-  }, [isConnected, walletClient, publicClient, address, form]);
+  }, [isConnected, walletClient, publicClient, address, form, fetchSchedules]);
 
-  const handleAddSchedule = useCallback(() => {
-    if (!schedForm.to || !schedForm.amount) return;
-    const next = schedForm.interval==="Weekly" ? "Jun 7" : schedForm.interval==="Bi-weekly" ? "Jun 14" : schedForm.interval==="Quarterly" ? "Sep 30" : "Jun 30";
-    setScheduled(prev => [...prev, { id:Date.now(), to:schedForm.to, label:schedForm.label||"Employee", amount:parseFloat(schedForm.amount).toLocaleString("en-US",{minimumFractionDigits:2}), interval:schedForm.interval, next }]);
-    setSchedForm({ to:"", label:"", amount:"", interval:"Monthly" });
-  }, [schedForm]);
+  // Execute an existing schedule
+  const handleExecute = useCallback(async (index: number) => {
+    if (!isConnected||!walletClient||!publicClient||!address) return;
+    setTxState("executing"); setTxError("");
+    try {
+      const [ok, reason] = await publicClient.readContract({
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"canExecute",
+        args:[address, BigInt(index)],
+      }) as [boolean, string];
+      if (!ok) throw new Error(reason);
+      const hash = await walletClient.writeContract({
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"executeSchedule",
+        args:[address, BigInt(index)],
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      setTxHash(hash);
+      setTxState("success");
+      await fetchSchedules();
+      setTimeout(()=>{ setTxState("idle"); setTxHash(""); }, 6000);
+    } catch(e:unknown) {
+      setTxError(e instanceof Error ? e.message : "Execution failed");
+      setTxState("error");
+      setTimeout(()=>setTxState("idle"), 5000);
+    }
+  }, [isConnected, walletClient, publicClient, address, fetchSchedules]);
 
-  const totalMonthly = scheduled.reduce((sum, r) => {
-    const base = parseFloat(r.amount.replace(/,/g,"")) || 0;
-    const mult = r.interval==="Weekly" ? 4 : r.interval==="Bi-weekly" ? 2 : r.interval==="Quarterly" ? 0.33 : 1;
-    return sum + base * mult;
-  }, 0);
+  const totalMonthly = schedules
+    .filter(s=>s.active)
+    .reduce((sum,s)=>{
+      const base = Number(s.amount)/1_000_000;
+      const mult = Number(s.interval)<=604800 ? 4 : Number(s.interval)<=1209600 ? 2 : Number(s.interval)>=7776000 ? 0.33 : 1;
+      return sum + base * mult;
+    }, 0);
   return (
     <div style={{ minHeight:"100vh", background:"#080b10", fontFamily:"'DM Mono','Fira Mono',monospace", color:"#c8d6e5", position:"relative", overflow:"hidden" }}>
       <style>{`
@@ -228,6 +244,9 @@ function ArcPayrollInner() {
         .submit-btn{background:linear-gradient(135deg,#0a3d62,#1a5276);border:1px solid #2e86c1;color:#3dd6f5;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:13px 28px;border-radius:4px;cursor:pointer;width:100%;transition:all .2s;font-weight:500;}
         .submit-btn:hover:not(:disabled){background:linear-gradient(135deg,#0d4f80,#1f618d);border-color:#3dd6f5;color:#fff;}
         .submit-btn:disabled{opacity:.4;cursor:not-allowed;}
+        .exec-btn{background:none;border:1px solid #2e86c144;color:#3dd6f5;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;padding:5px 12px;border-radius:3px;cursor:pointer;transition:all .15s;}
+        .exec-btn:hover{border-color:#3dd6f5;background:#0d1f35;}
+        .exec-btn:disabled{opacity:.3;cursor:not-allowed;}
         .card{background:#0b1520;border:1px solid #162030;border-radius:6px;padding:20px 22px;}
         .stat-card{background:#0b1520;border:1px solid #162030;border-radius:6px;padding:18px 20px;position:relative;overflow:hidden;}
         .row-item{display:grid;gap:10px;align-items:center;padding:11px 14px;border-radius:4px;font-size:12px;border-bottom:1px solid #0e1b28;transition:background .12s;}
@@ -244,9 +263,9 @@ function ArcPayrollInner() {
       <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",backgroundImage:"linear-gradient(rgba(61,214,245,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(61,214,245,.025) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
       <div style={{position:"fixed",left:0,right:0,height:1,zIndex:1,pointerEvents:"none",top:`${scanLine}%`,background:"linear-gradient(90deg,transparent,rgba(61,214,245,.07),transparent)",transition:"top .06s linear"}}/>
       <div style={{position:"fixed",top:-200,right:-100,width:600,height:600,background:"radial-gradient(circle,rgba(13,79,130,.18),transparent 70%)",pointerEvents:"none",zIndex:0}}/>
-      <div style={{position:"fixed",bottom:-300,left:-200,width:700,height:700,background:"radial-gradient(circle,rgba(61,214,245,.04),transparent 70%)",pointerEvents:"none",zIndex:0}}/>
 
       <div style={{position:"relative",zIndex:2,maxWidth:1020,margin:"0 auto",padding:"0 24px 80px"}}>
+
         <div style={{paddingTop:36,paddingBottom:24,borderBottom:"1px solid #111e2b",marginBottom:28,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
             <div style={{display:"flex",alignItems:"baseline",gap:10}}>
@@ -266,14 +285,14 @@ function ArcPayrollInner() {
 
         <div style={{marginBottom:28,padding:"12px 18px",background:"linear-gradient(90deg,#071929,#091e30)",border:"1px solid #0f2235",borderRadius:5,display:"flex",alignItems:"center",gap:16}}>
           <span style={{fontSize:11,color:"#3dd6f5"}}>⬡</span>
-          <span style={{fontSize:11,color:"#4a7090",letterSpacing:".05em",lineHeight:1.7}}>
+          <span style={{fontSize:11,color:"#4a7090",lineHeight:1.7}}>
             <span style={{color:"#8ab4cc"}}>Cryptographic signature × smart contract enforcement</span>
-            {" "}— no intermediaries, no impersonation, no tampering. Every disbursement is signed by the payer&apos;s private key and recorded immutably on Arc Testnet.
+            {" "}— no intermediaries, no impersonation, no tampering. Every disbursement recorded immutably on Arc Testnet.
           </span>
         </div>
 
         <div style={{display:"flex",gap:4,marginBottom:28,background:"#090f18",padding:4,borderRadius:5,width:"fit-content"}}>
-          {[["dashboard","Dashboard"],["schedule","Schedule"],["history","History"]].map(([k,l]) => (
+          {[["dashboard","Dashboard"],["schedule","Schedule"]].map(([k,l])=>(
             <button key={k} className={`nav-btn${activeTab===k?" active":""}`} onClick={()=>setActiveTab(k)}>{l}</button>
           ))}
         </div>
@@ -282,75 +301,78 @@ function ArcPayrollInner() {
           <div className="animate-in">
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:24}}>
               {[
-                {label:"Monthly Disbursement",value:`$${totalMonthly.toLocaleString("en-US",{minimumFractionDigits:2})}`,unit:"USDC",accent:"#3dd6f5"},
-                {label:"Active Recipients",value:scheduled.length,unit:"employees",accent:"#a78bfa"},
-                {label:"Next Payment",value:"Jun 7",unit:"scheduled",accent:"#ffd166"},
-              ].map((s,i) => (
+                {label:"Monthly Disbursement",value:`$${totalMonthly.toLocaleString("en-US",{minimumFractionDigits:2})}`,unit:"USDC est.",accent:"#3dd6f5"},
+                {label:"Active Schedules",value:schedules.filter(s=>s.active).length,unit:"employees",accent:"#a78bfa"},
+                {label:"Weekly Remaining",value:weeklyLeft??"-",unit:"USDC",accent:"#ffd166"},
+              ].map((s,i)=>(
                 <div key={i} className="stat-card">
                   <div style={{fontSize:10,color:"#2e5070",letterSpacing:".1em",textTransform:"uppercase",marginBottom:10}}>{s.label}</div>
-                  <div style={{fontSize:24,fontFamily:"'Syne',sans-serif",fontWeight:700,color:s.accent,fontVariantNumeric:"tabular-nums"}}>{s.value}</div>
+                  <div style={{fontSize:22,fontFamily:"'Syne',sans-serif",fontWeight:700,color:s.accent,fontVariantNumeric:"tabular-nums"}}>{s.value}</div>
                   <div style={{fontSize:10,color:"#2e5070",marginTop:3}}>{s.unit}</div>
                   <div style={{position:"absolute",bottom:0,left:0,right:0,height:2,background:`linear-gradient(90deg,${s.accent}55,transparent)`}}/>
                 </div>
               ))}
             </div>
+
             <div className="card">
-              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>New Payment</div>
+              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Create Payment Schedule</div>
               {!isConnected && (
                 <div style={{padding:"28px 0",textAlign:"center"}}>
-                  <div style={{color:"#2e5070",fontSize:12,marginBottom:14}}>Connect your wallet to send a payment</div>
+                  <div style={{color:"#2e5070",fontSize:12,marginBottom:14}}>Connect your wallet to create a schedule</div>
                   <WalletBar/>
                 </div>
               )}
               {isConnected && txState==="success" && (
                 <div className="success-pop" style={{padding:"32px 0",textAlign:"center"}}>
                   <div style={{fontSize:28,marginBottom:10,color:"#00e5a0"}}>✓</div>
-                  <div style={{color:"#00e5a0",fontSize:12,letterSpacing:".1em"}}>Payment Sent</div>
+                  <div style={{color:"#00e5a0",fontSize:12,letterSpacing:".1em"}}>
+                    {txState==="success" ? "Schedule Created / Payment Sent" : "Done"}
+                  </div>
                   <div style={{color:"#2e5070",fontSize:11,marginTop:6}}>Signed · broadcast · on-chain confirmed</div>
-                  {txHash && <div style={{marginTop:10,fontSize:10,color:"#3dd6f5"}}>TX: <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>{txHash.slice(0,12)}…{txHash.slice(-8)}</a></div>}
+                  {txHash && <div style={{marginTop:10,fontSize:10,color:"#3dd6f5"}}>TX: <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>{txHash.slice(0,14)}…</a></div>}
                 </div>
               )}
               {isConnected && txState==="error" && (
                 <div style={{padding:"20px 0",textAlign:"center"}}>
-                  <div style={{color:"#ff4d6d",fontSize:12,marginBottom:6}}>Transaction Failed</div>
-                  <div style={{color:"#2e5070",fontSize:11}}>{txError}</div>
+                  <div style={{color:"#ff4d6d",fontSize:12,marginBottom:6}}>Failed</div>
+                  <div style={{color:"#2e5070",fontSize:11,maxWidth:400,margin:"0 auto"}}>{txError}</div>
                 </div>
               )}
-              {isConnected && (txState==="idle"||txState==="signing"||txState==="pending") && (
+              {isConnected && !["success","error"].includes(txState) && (
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                  <div>
-                    <div style={{fontSize:10,color:"#2e5070",marginBottom:6,letterSpacing:".08em"}}>Recipient Wallet Address</div>
-                    <input className="input-field" placeholder="0x..." value={form.to} onChange={e=>setForm(f=>({...f,to:e.target.value}))}/>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                    <div>
+                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Recipient Address</div>
+                      <input className="input-field" placeholder="0x..." value={form.to} onChange={e=>setForm(f=>({...f,to:e.target.value}))}/>
+                    </div>
+                    <div>
+                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Label</div>
+                      <input className="input-field" placeholder="e.g. Alice M." value={form.label} onChange={e=>setForm(f=>({...f,label:e.target.value}))}/>
+                    </div>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                     <div>
-                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6,letterSpacing:".08em"}}>Amount (USDC)</div>
+                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Amount (USDC)</div>
                       <input className="input-field" placeholder="0.00" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
                     </div>
                     <div>
-                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6,letterSpacing:".08em"}}>Payment Interval</div>
-                      <select className="select-field" value={form.interval} onChange={e=>setForm(f=>({...f,interval:e.target.value}))}>
-                        {INTERVALS.map(v=><option key={v}>{v}</option>)}
+                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Interval</div>
+                      <select className="select-field" value={form.interval} onChange={e=>setForm(f=>({...f,interval:Number(e.target.value)}))}>
+                        {INTERVALS.map(v=><option key={v.seconds} value={v.seconds}>{v.label}</option>)}
                       </select>
                     </div>
                   </div>
                   <div style={{fontSize:10,color:"#1e3a50",borderTop:"1px solid #0e1b28",paddingTop:12,lineHeight:1.7}}>
-                    <span style={{color:"#2e5070"}}>How it works: </span>
-                    your wallet signs off-chain → contract verifies on Arc Testnet → USDC transferred trustlessly
+                    <span style={{color:"#2e5070"}}>Flow: </span>
+                    approve USDC → createSchedule on-chain → executeSchedule when due · no bank · no clearinghouse
                   </div>
-                  <button className="submit-btn" onClick={handlePayment} >
-                    {txState==="signing"?<><span className="spinning">◌</span> Signing…</>:txState==="pending"?<><span className="spinning">◌</span> Broadcasting…</>:"Sign & Send Payment →"}
+                  <button className="submit-btn" onClick={handleCreate} disabled={txState!=="idle"||!form.to||!form.amount}>
+                    {txState==="approving" ? <><span className="spinning">◌</span> Approving USDC…</>
+                    :txState==="creating"  ? <><span className="spinning">◌</span> Creating Schedule…</>
+                    :"Create Schedule →"}
                   </button>
                 </div>
               )}
-            </div>
-            <div style={{marginTop:14,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[{label:"PaymentScheduler",addr:SCHEDULER_ADDRESS},{label:"USDC (Arc Testnet)",addr:USDC_ADDRESS}].map(c=>(
-                <div key={c.addr} style={{padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:10,color:"#2e5070"}}>{c.label}</span>
-                  <a href={`https://testnet.arcscan.app/address/${c.addr}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",fontFamily:"monospace",textDecoration:"none"}}>{c.addr.slice(0,10)}…</a>
-                </div>
-              ))}
             </div>
           </div>
         )}
@@ -358,74 +380,54 @@ function ArcPayrollInner() {
         {activeTab==="schedule" && (
           <div className="animate-in">
             <div className="card">
-              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Recurring Schedule</div>
-              <div style={{display:"grid",gridTemplateColumns:"1.4fr 1fr 90px 90px 70px",gap:10,padding:"6px 14px",fontSize:10,color:"#2e5070",letterSpacing:".08em",marginBottom:4}}>
-                <span>Address</span><span>Label</span><span>Amount</span><span>Interval</span><span>Next</span>
+              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>
+                On-Chain Schedules
+                <button onClick={fetchSchedules} style={{marginLeft:12,background:"none",border:"1px solid #1a2a3a",color:"#3dd6f5",fontSize:9,padding:"2px 8px",borderRadius:3,cursor:"pointer"}}>↻ Refresh</button>
               </div>
-              {scheduled.map((row:ScheduledRow) => (
-                <div key={row.id} className="row-item" style={{gridTemplateColumns:"1.4fr 1fr 90px 90px 70px"}}>
-                  <span style={{color:"#3dd6f5",fontSize:11}}>{row.to}</span>
-                  <span style={{color:"#8ab4cc"}}>{row.label}</span>
-                  <span style={{fontVariantNumeric:"tabular-nums"}}>{row.amount}</span>
-                  <span style={{color:"#a78bfa",fontSize:11}}>{row.interval}</span>
-                  <span style={{color:"#ffd166",fontSize:11}}>{row.next}</span>
-                </div>
-              ))}
+              {!isConnected && <div style={{color:"#2e5070",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
+              {isConnected && schedules.length===0 && <div style={{color:"#2e5070",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
+              {isConnected && schedules.length>0 && (
+                <>
+                  <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 80px",gap:10,padding:"6px 14px",fontSize:10,color:"#2e5070",letterSpacing:".08em",marginBottom:4}}>
+                    <span>Recipient</span><span>Label</span><span>Amount</span><span>Interval</span><span>Status</span><span>Action</span>
+                  </div>
+                  {schedules.map((row,i)=>{
+                    const amt = (Number(row.amount)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2});
+                    const intervalLabel = INTERVALS.find(iv=>iv.seconds===Number(row.interval))?.label ?? `${Number(row.interval)}s`;
+                    const nextDate = new Date(Number(row.nextExecution)*1000).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+                    return (
+                      <div key={i} className="row-item" style={{gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 80px"}}>
+                        <span style={{color:"#3dd6f5",fontSize:11}}>{shortAddr(row.recipient)}</span>
+                        <span style={{color:"#8ab4cc",fontSize:11}}>{row.label}</span>
+                        <span style={{fontVariantNumeric:"tabular-nums"}}>{amt}</span>
+                        <span style={{color:"#a78bfa",fontSize:11}}>{intervalLabel}</span>
+                        <StatusPill active={row.active}/>
+                        <button className="exec-btn" onClick={()=>handleExecute(i)} disabled={txState!=="idle"}>
+                          {txState==="executing" ? <span className="spinning">◌</span> : `Send · ${nextDate}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
-            <div className="card" style={{marginTop:16}}>
-              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Add Recipient</div>
-              <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-                  <div>
-                    <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Wallet Address</div>
-                    <input className="input-field" placeholder="0x..." value={schedForm.to} onChange={e=>setSchedForm(f=>({...f,to:e.target.value}))}/>
-                  </div>
-                  <div>
-                    <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Label (optional)</div>
-                    <input className="input-field" placeholder="e.g. John D." value={schedForm.label} onChange={e=>setSchedForm(f=>({...f,label:e.target.value}))}/>
-                  </div>
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-                  <div>
-                    <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Amount (USDC)</div>
-                    <input className="input-field" placeholder="0.00" type="number" value={schedForm.amount} onChange={e=>setSchedForm(f=>({...f,amount:e.target.value}))}/>
-                  </div>
-                  <div>
-                    <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Interval</div>
-                    <select className="select-field" value={schedForm.interval} onChange={e=>setSchedForm(f=>({...f,interval:e.target.value}))}>
-                      {INTERVALS.map(v=><option key={v}>{v}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <button className="submit-btn" onClick={handleAddSchedule} disabled={!schedForm.to||!schedForm.amount}>Add to Schedule →</button>
+            {txState==="success" && txHash && (
+              <div style={{marginTop:14,padding:"12px 16px",border:"1px solid #00e5a044",borderRadius:5,display:"flex",gap:12,alignItems:"center"}}>
+                <span style={{color:"#00e5a0"}}>✓</span>
+                <span style={{fontSize:11,color:"#2e5070"}}>
+                  TX confirmed on Arc Testnet —{" "}
+                  <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5",textDecoration:"none"}}>{txHash.slice(0,14)}…</a>
+                </span>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab==="history" && (
-          <div className="animate-in">
-            <div className="card">
-              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Transaction History</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 90px 90px 90px",gap:10,padding:"6px 14px",fontSize:10,color:"#2e5070",letterSpacing:".08em",marginBottom:4}}>
-                <span>Recipient</span><span>Timestamp</span><span>Amount</span><span>Interval</span><span>Status</span>
+            )}
+            {txState==="error" && (
+              <div style={{marginTop:14,padding:"12px 16px",border:"1px solid #ff4d6d44",borderRadius:5}}>
+                <span style={{fontSize:11,color:"#ff4d6d"}}>{txError}</span>
               </div>
-              {MOCK_HISTORY.map((row:HistoryRow) => (
-                <div key={row.id} className="row-item" style={{gridTemplateColumns:"1fr 1fr 90px 90px 90px"}}>
-                  <span style={{color:"#3dd6f5",fontSize:11}}>{row.to}</span>
-                  <span style={{color:"#4a7090",fontSize:11}}>{row.ts}</span>
-                  <span style={{fontVariantNumeric:"tabular-nums"}}>{row.amount}</span>
-                  <span style={{color:"#a78bfa",fontSize:11}}>{row.interval}</span>
-                  <StatusPill status={row.status}/>
-                </div>
-              ))}
-            </div>
-            <div style={{marginTop:16,padding:"12px 16px",border:"1px solid #0f2235",borderRadius:5,display:"flex",gap:12,alignItems:"center"}}>
-              <span style={{fontSize:14}}>🔐</span>
-              <span style={{fontSize:11,color:"#2e5070",lineHeight:1.7}}>
-                All transactions recorded on <span style={{color:"#3dd6f5"}}>Arc Testnet</span> — verifiable at{" "}
-                <a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer" style={{color:"#8ab4cc",textDecoration:"none"}}>testnet.arcscan.app</a>.
-              </span>
+            )}
+            <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:10,color:"#2e5070"}}>PaymentScheduler Contract</span>
+              <a href={`https://testnet.arcscan.app/address/${SCHEDULER}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>{SCHEDULER.slice(0,10)}…</a>
             </div>
           </div>
         )}
