@@ -155,7 +155,7 @@ function ArcPayrollInner() {
   // Create a new schedule
   const handleCreate = useCallback(async () => {
     if (!isConnected||!walletClient||!publicClient||!address||!form.to||!form.amount) return;
-    setTxState("approving"); setTxError("");
+    alert("wallet:"+!!walletClient+" public:"+!!publicClient+" addr:"+!!address); setTxState("approving"); setTxError("");
     try {
       const amount = parseUnits(form.amount, 6);
       const allowance = await publicClient.readContract({
