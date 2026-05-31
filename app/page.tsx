@@ -220,7 +220,7 @@ export default function ArcPayroll() {
           <span style={{fontSize:11,color:"#3dd6f5"}}>⬡</span>
           <span style={{fontSize:11,color:"#4a7090",letterSpacing:".05em",lineHeight:1.7}}>
             <span style={{color:"#8ab4cc"}}>Cryptographic signature × smart contract enforcement</span>
-            {" "}— no intermediaries, no impersonation, no tampering. Every disbursement is signed by the payer&apos;s private key and recorded immutably on Arc Testnet.
+            {" "}— no intermediaries, no impersonation, no tampering. Every disbursement is signed by the payer&apos;s wallet approval and recorded immutably on Arc Testnet.
           </span>
         </div>
 
