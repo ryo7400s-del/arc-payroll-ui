@@ -1,5 +1,10 @@
 "use client"
+
 import { useState, useEffect, useCallback } from "react";
+import { WagmiProvider, createConfig, http, useAccount, useWalletClient, usePublicClient, useConnect, useDisconnect } from "wagmi";
+import { injected } from "@wagmi/connectors";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { keccak256, encodePacked, toBytes, parseUnits } from "viem";
 
 const arcTestnet = {
   id: 5042002,
@@ -9,24 +14,27 @@ const arcTestnet = {
   blockExplorers: { default: { name: "ArcScan", url: "https://testnet.arcscan.app" } },
 };
 
-const SCHEDULER_ADDRESS = "0xf28150bc2746af10f91b2744295b6c0de9a50a46";
+const config = createConfig({
+  chains: [arcTestnet],
+  connectors: [injected()],
+  transports: { [arcTestnet.id]: http() },
+});
+
+const queryClient = new QueryClient();
+
+const SCHEDULER_ADDRESS = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa";
 const USDC_ADDRESS      = "0x3600000000000000000000000000000000000000";
 
 const SCHEDULER_ABI = [
   { type:"function", name:"executeX402Payment",
     inputs:[{ name:"req", type:"tuple", components:[
-      { name:"payer", type:"address" },
-      { name:"merchant", type:"address" },
-      { name:"amount", type:"uint256" },
-      { name:"expiry", type:"uint256" },
-      { name:"nonce", type:"uint256" },
-      { name:"signature", type:"bytes" },
+      { name:"payer",     type:"address" },
+      { name:"merchant",  type:"address" },
+      { name:"amount",    type:"uint256" },
+      { name:"expiry",    type:"uint256" },
+      { name:"nonce",     type:"uint256" },
+      { name:"signature", type:"bytes"   },
     ]}], outputs:[] },
-  { type:"function", name:"isWhitelisted",
-    inputs:[{name:"payer",type:"address"},{name:"merchant",type:"address"}],
-    outputs:[{type:"bool"}] },
-  { type:"function", name:"addToWhitelist",
-    inputs:[{name:"merchant",type:"address"}], outputs:[] },
 ];
 
 const USDC_ABI = [
@@ -35,6 +43,9 @@ const USDC_ABI = [
     outputs:[{type:"bool"}] },
   { type:"function", name:"allowance",
     inputs:[{name:"owner",type:"address"},{name:"spender",type:"address"}],
+    outputs:[{type:"uint256"}] },
+  { type:"function", name:"balanceOf",
+    inputs:[{name:"account",type:"address"}],
     outputs:[{type:"uint256"}] },
 ];
 
@@ -61,21 +72,6 @@ function shortAddr(addr: string) {
 type TxState = "idle"|"signing"|"pending"|"success"|"error";
 interface ScheduledRow { id:number; to:string; label:string; amount:string; interval:string; next:string; }
 interface HistoryRow   { id:number; to:string; amount:string; interval:string; status:string; ts:string; }
-
-function useWalletShim() {
-  const [account,    setAccount]    = useState<string|null>(null);
-  const [balance,    setBalance]    = useState<string|null>(null);
-  const [connecting, setConnecting] = useState(false);
-  const connect = useCallback(async () => {
-    setConnecting(true);
-    await new Promise(r => setTimeout(r, 900));
-    const fake = "0x" + Array.from({length:40}, () => "0123456789abcdef"[Math.floor(Math.random()*16)]).join("");
-    setAccount(fake); setBalance("12,480.00"); setConnecting(false);
-  }, []);
-  const disconnect = useCallback(() => { setAccount(null); setBalance(null); }, []);
-  return { account, balance, connecting, connect, disconnect };
-}
-
 function StatusPill({ status }: { status: string }) {
   const cfg: Record<string,{color:string;label:string}> = {
     confirmed: { color:"#00e5a0", label:"Confirmed" },
@@ -91,34 +87,55 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function WalletBar({ wallet }: { wallet: ReturnType<typeof useWalletShim> }) {
-  const { account, balance, connecting, connect, disconnect } = wallet;
-  if (!account) return (
-    <button className="connect-btn" onClick={connect} disabled={connecting}>
-      {connecting ? "Connecting…" : "Connect Wallet"}
+function WalletBar() {
+  const { address, isConnected } = useAccount();
+  const { connect, connectors }  = useConnect();
+  const { disconnect }           = useDisconnect();
+  const publicClient             = usePublicClient();
+  const [balance, setBalance]    = useState<string|null>(null);
+
+  useEffect(() => {
+    if (!address || !publicClient) return;
+    publicClient.readContract({
+      address: USDC_ADDRESS as `0x${string}`,
+      abi: USDC_ABI,
+      functionName: "balanceOf",
+      args: [address],
+    }).then((raw: unknown) => {
+      const val = Number(raw as bigint) / 1_000_000;
+      setBalance(val.toLocaleString("en-US", { minimumFractionDigits:2 }));
+    }).catch(() => setBalance(null));
+  }, [address, publicClient]);
+
+  if (!isConnected) return (
+    <button className="connect-btn" onClick={() => connect({ connector: connectors[0] })}>
+      Connect Wallet
     </button>
   );
   return (
     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
       <div style={{ textAlign:"right" }}>
-        <div style={{ fontSize:11, color:"#3dd6f5", fontWeight:500 }}>{shortAddr(account)}</div>
-        <div style={{ fontSize:10, color:"#2e5070" }}>{balance} USDC</div>
+        <div style={{ fontSize:11, color:"#3dd6f5", fontWeight:500 }}>{shortAddr(address!)}</div>
+        <div style={{ fontSize:10, color:"#2e5070" }}>{balance ?? "..."} USDC</div>
       </div>
-      <button className="disconnect-btn" onClick={disconnect}>✕</button>
+      <button className="disconnect-btn" onClick={() => disconnect()}>✕</button>
     </div>
   );
 }
-export default function ArcPayroll() {
-  const wallet = useWalletShim();
-  const { account } = wallet;
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [scanLine,  setScanLine]  = useState(0);
-  const [form, setForm]           = useState({ to:"", amount:"", interval:"Monthly" });
-  const [txState, setTxState]     = useState<TxState>("idle");
-  const [txHash,  setTxHash]      = useState("");
-  const [txError, setTxError]     = useState("");
-  const [schedForm, setSchedForm] = useState({ to:"", label:"", amount:"", interval:"Monthly" });
-  const [scheduled, setScheduled] = useState<ScheduledRow[]>(INITIAL_SCHEDULED);
+
+function ArcPayrollInner() {
+  const { address, isConnected }   = useAccount();
+  const { data: walletClient }     = useWalletClient();
+  const publicClient               = usePublicClient();
+
+  const [activeTab, setActiveTab]  = useState("dashboard");
+  const [scanLine,  setScanLine]   = useState(0);
+  const [form, setForm]            = useState({ to:"", amount:"", interval:"Monthly" });
+  const [txState, setTxState]      = useState<TxState>("idle");
+  const [txHash,  setTxHash]       = useState("");
+  const [txError, setTxError]      = useState("");
+  const [schedForm, setSchedForm]  = useState({ to:"", label:"", amount:"", interval:"Monthly" });
+  const [scheduled, setScheduled]  = useState<ScheduledRow[]>(INITIAL_SCHEDULED);
 
   useEffect(() => {
     const t = setInterval(() => setScanLine(s => (s+1)%100), 60);
@@ -126,21 +143,53 @@ export default function ArcPayroll() {
   }, []);
 
   const handlePayment = useCallback(async () => {
-    if (!account || !form.to || !form.amount) return;
+    if (!isConnected || !walletClient || !publicClient || !address || !form.to || !form.amount) return;
     setTxState("signing"); setTxError("");
     try {
-      await new Promise(r => setTimeout(r, 1000));
+      const amount  = parseUnits(form.amount, 6);
+      const nonce   = BigInt(Date.now());
+      const expiry  = BigInt(Math.floor(Date.now()/1000) + 300);
+
+      const innerHash = keccak256(encodePacked(
+        ["address","address","uint256","uint256","uint256"],
+        [address, form.to as `0x${string}`, amount, expiry, nonce]
+      ));
+      const sig = await walletClient.signMessage({ message: { raw: toBytes(innerHash) } });
+
+      const allowance = await publicClient.readContract({
+        address: USDC_ADDRESS as `0x${string}`,
+        abi: USDC_ABI,
+        functionName: "allowance",
+        args: [address, SCHEDULER_ADDRESS as `0x${string}`],
+      }) as bigint;
+
+      if (allowance < amount) {
+        const ah = await walletClient.writeContract({
+          address: USDC_ADDRESS as `0x${string}`,
+          abi: USDC_ABI,
+          functionName: "approve",
+          args: [SCHEDULER_ADDRESS as `0x${string}`, parseUnits("1000000", 6)],
+        });
+        await publicClient.waitForTransactionReceipt({ hash: ah });
+      }
+
       setTxState("pending");
-      await new Promise(r => setTimeout(r, 1800));
-      const fakeHash = "0x" + Array.from({length:64}, () => "0123456789abcdef"[Math.floor(Math.random()*16)]).join("");
-      setTxHash(fakeHash); setTxState("success");
-      setTimeout(() => { setTxState("idle"); setTxHash(""); setForm({ to:"", amount:"", interval:"Monthly" }); }, 5000);
+      const hash = await walletClient.writeContract({
+        address: SCHEDULER_ADDRESS as `0x${string}`,
+        abi: SCHEDULER_ABI,
+        functionName: "executeX402Payment",
+        args: [{ payer: address, merchant: form.to as `0x${string}`, amount, expiry, nonce, signature: sig as `0x${string}` }],
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      setTxHash(hash);
+      setTxState("success");
+      setTimeout(() => { setTxState("idle"); setTxHash(""); setForm({ to:"", amount:"", interval:"Monthly" }); }, 6000);
     } catch (e: unknown) {
       setTxError(e instanceof Error ? e.message : "Transaction failed");
       setTxState("error");
       setTimeout(() => setTxState("idle"), 4000);
     }
-  }, [account, form]);
+  }, [isConnected, walletClient, publicClient, address, form]);
 
   const handleAddSchedule = useCallback(() => {
     if (!schedForm.to || !schedForm.amount) return;
@@ -154,7 +203,6 @@ export default function ArcPayroll() {
     const mult = r.interval==="Weekly" ? 4 : r.interval==="Bi-weekly" ? 2 : r.interval==="Quarterly" ? 0.33 : 1;
     return sum + base * mult;
   }, 0);
-
   return (
     <div style={{ minHeight:"100vh", background:"#080b10", fontFamily:"'DM Mono','Fira Mono',monospace", color:"#c8d6e5", position:"relative", overflow:"hidden" }}>
       <style>{`
@@ -210,9 +258,9 @@ export default function ArcPayroll() {
           <div style={{display:"flex",alignItems:"center",gap:16}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <div style={{width:6,height:6,borderRadius:"50%",background:"#00e5a0",animation:"pulse 2s infinite"}}/>
-              <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · {arcTestnet.id}</span>
+              <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
-            <WalletBar wallet={wallet}/>
+            <WalletBar/>
           </div>
         </div>
 
@@ -220,7 +268,7 @@ export default function ArcPayroll() {
           <span style={{fontSize:11,color:"#3dd6f5"}}>⬡</span>
           <span style={{fontSize:11,color:"#4a7090",letterSpacing:".05em",lineHeight:1.7}}>
             <span style={{color:"#8ab4cc"}}>Cryptographic signature × smart contract enforcement</span>
-            {" "}— no intermediaries, no impersonation, no tampering. Every disbursement is signed by the payer&apos;s wallet approval and recorded immutably on Arc Testnet.
+            {" "}— no intermediaries, no impersonation, no tampering. Every disbursement is signed by the payer&apos;s private key and recorded immutably on Arc Testnet.
           </span>
         </div>
 
@@ -229,6 +277,7 @@ export default function ArcPayroll() {
             <button key={k} className={`nav-btn${activeTab===k?" active":""}`} onClick={()=>setActiveTab(k)}>{l}</button>
           ))}
         </div>
+
         {activeTab==="dashboard" && (
           <div className="animate-in">
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:24}}>
@@ -247,27 +296,27 @@ export default function ArcPayroll() {
             </div>
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>New Payment</div>
-              {!account && (
+              {!isConnected && (
                 <div style={{padding:"28px 0",textAlign:"center"}}>
-                  <div style={{color:"#2e5070",fontSize:12,marginBottom:14}}>Connect your wallet to schedule a payment</div>
-                  <button className="connect-btn" onClick={wallet.connect} disabled={wallet.connecting}>{wallet.connecting?"Connecting…":"Connect Wallet"}</button>
+                  <div style={{color:"#2e5070",fontSize:12,marginBottom:14}}>Connect your wallet to send a payment</div>
+                  <WalletBar/>
                 </div>
               )}
-              {account && txState==="success" && (
+              {isConnected && txState==="success" && (
                 <div className="success-pop" style={{padding:"32px 0",textAlign:"center"}}>
                   <div style={{fontSize:28,marginBottom:10,color:"#00e5a0"}}>✓</div>
-                  <div style={{color:"#00e5a0",fontSize:12,letterSpacing:".1em"}}>Payment Scheduled</div>
-                  <div style={{color:"#2e5070",fontSize:11,marginTop:6}}>Signed · broadcast · on-chain record</div>
-                  {txHash && <div style={{marginTop:10,fontSize:10,color:"#3dd6f5"}}>TX: {txHash.slice(0,12)}…{txHash.slice(-8)}</div>}
+                  <div style={{color:"#00e5a0",fontSize:12,letterSpacing:".1em"}}>Payment Sent</div>
+                  <div style={{color:"#2e5070",fontSize:11,marginTop:6}}>Signed · broadcast · on-chain confirmed</div>
+                  {txHash && <div style={{marginTop:10,fontSize:10,color:"#3dd6f5"}}>TX: <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>{txHash.slice(0,12)}…{txHash.slice(-8)}</a></div>}
                 </div>
               )}
-              {account && txState==="error" && (
+              {isConnected && txState==="error" && (
                 <div style={{padding:"20px 0",textAlign:"center"}}>
                   <div style={{color:"#ff4d6d",fontSize:12,marginBottom:6}}>Transaction Failed</div>
                   <div style={{color:"#2e5070",fontSize:11}}>{txError}</div>
                 </div>
               )}
-              {account && (txState==="idle"||txState==="signing"||txState==="pending") && (
+              {isConnected && (txState==="idle"||txState==="signing"||txState==="pending") && (
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div>
                     <div style={{fontSize:10,color:"#2e5070",marginBottom:6,letterSpacing:".08em"}}>Recipient Wallet Address</div>
@@ -287,10 +336,10 @@ export default function ArcPayroll() {
                   </div>
                   <div style={{fontSize:10,color:"#1e3a50",borderTop:"1px solid #0e1b28",paddingTop:12,lineHeight:1.7}}>
                     <span style={{color:"#2e5070"}}>How it works: </span>
-                    your wallet signs the payment request off-chain → smart contract verifies signature on Arc Testnet → USDC transferred trustlessly · no bank · no clearinghouse
+                    your wallet signs off-chain → contract verifies on Arc Testnet → USDC transferred trustlessly
                   </div>
                   <button className="submit-btn" onClick={handlePayment} disabled={txState!=="idle"||!form.to||!form.amount}>
-                    {txState==="signing"?<><span className="spinning">◌</span> Signing…</>:txState==="pending"?<><span className="spinning">◌</span> Broadcasting…</>:"Sign & Schedule Payment →"}
+                    {txState==="signing"?<><span className="spinning">◌</span> Signing…</>:txState==="pending"?<><span className="spinning">◌</span> Broadcasting…</>:"Sign & Send Payment →"}
                   </button>
                 </div>
               )}
@@ -299,7 +348,7 @@ export default function ArcPayroll() {
               {[{label:"PaymentScheduler",addr:SCHEDULER_ADDRESS},{label:"USDC (Arc Testnet)",addr:USDC_ADDRESS}].map(c=>(
                 <div key={c.addr} style={{padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{fontSize:10,color:"#2e5070"}}>{c.label}</span>
-                  <span style={{fontSize:10,color:"#3dd6f5",fontFamily:"monospace"}}>{c.addr.slice(0,10)}…</span>
+                  <a href={`https://testnet.arcscan.app/address/${c.addr}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",fontFamily:"monospace",textDecoration:"none"}}>{c.addr.slice(0,10)}…</a>
                 </div>
               ))}
             </div>
@@ -376,7 +425,6 @@ export default function ArcPayroll() {
               <span style={{fontSize:11,color:"#2e5070",lineHeight:1.7}}>
                 All transactions recorded on <span style={{color:"#3dd6f5"}}>Arc Testnet</span> — verifiable at{" "}
                 <a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer" style={{color:"#8ab4cc",textDecoration:"none"}}>testnet.arcscan.app</a>.
-                Signatures verified on-chain — no trusted third party required.
               </span>
             </div>
           </div>
@@ -384,5 +432,15 @@ export default function ArcPayroll() {
 
       </div>
     </div>
+  );
+}
+
+export default function ArcPayroll() {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <ArcPayrollInner/>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
