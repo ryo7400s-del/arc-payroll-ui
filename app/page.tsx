@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from "react";
-import { WagmiProvider, createConfig, http, useAccount, useWalletClient, usePublicClient, useConnect, useDisconnect } from "wagmi";
+import { WagmiProvider, createConfig, http, useAccount, usePublicClient, useConnect, useDisconnect, useConnectorClient } from "wagmi";
 import { injected, walletConnect } from "@wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { parseUnits } from "viem";
@@ -113,7 +113,8 @@ function WalletBar() {
 
 function ArcPayrollInner() {
   const { address, isConnected }  = useAccount();
-  const { data: walletClient }    = useWalletClient();
+  const { data: connectorClient } = useConnectorClient();
+  const walletClient = connectorClient ? { writeContract: (args: any) => connectorClient.request({ method: "eth_sendTransaction", params: [args] }), signMessage: (args: any) => connectorClient.request({ method: "personal_sign", params: [args.message.raw, address] }) } : null;
   const publicClient              = usePublicClient();
 
   const [activeTab, setActiveTab] = useState("dashboard");
