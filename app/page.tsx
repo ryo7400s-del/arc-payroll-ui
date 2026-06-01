@@ -98,7 +98,7 @@ function X402Send({ address }: { address: string }) {
         ["address","address","uint256","uint256","uint256"],
         [address as `0x${string}`, MERCHANT, amount, expiry, nonce]
       ));
-      const signature = await wc.sign({ hash: innerHash });
+      const signature = await wc.signMessage({ message:{ raw: toBytes(innerHash) } });
 
       // Step3: USDC approve + executeX402Payment
       setState("paying");
