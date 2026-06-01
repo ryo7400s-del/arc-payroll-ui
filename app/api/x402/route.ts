@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, http, keccak256, encodePacked, parseUnits } from "viem";
+import { createPublicClient, http, keccak256, encodeAbiParameters, parseAbiParameters, parseUnits } from "viem";
 
 const arcTestnet = {
   id: 5042002,
@@ -28,18 +28,20 @@ const ABI = [
 
 const publicClient = createPublicClient({ chain:arcTestnet, transport:http() });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const { payer, amount, expiry, nonce, signature, content, merchant } = await req.json();
+const MERCHANT_ADDR = (merchant || "0x2032C2aC5cdB02b2e0D46e015Af991C257edd388") as `0x${string}`;
   return NextResponse.json({
     error: "Payment Required",
     x402: {
       chainId: arcTestnet.id,
-      amount: "1000000",
-      merchant: MERCHANT,
-      description: "Pay 1 USDC to access this content",
+      amount,
+      merchant,
+      description: `Pay ${Number(amount)/1_000_000} USDC to access this content`,
     }
   }, { status: 402 });
 }
-
 export async function POST(req: NextRequest) {
   try {
     const { payer, amount, expiry, nonce, signature, content } = await req.json();
@@ -48,11 +50,9 @@ export async function POST(req: NextRequest) {
     }
 
     const innerHash = keccak256(
-      encodePacked(
-        ["address","address","uint256","uint256","uint256"],
-        [payer as `0x${string}`, MERCHANT, BigInt(amount), BigInt(expiry), BigInt(nonce)]
-      )
-    );
+    encodeAbiParameters(parseAbiParameters("address, address, uint256, uint256, uint256"),
+  [payer as `0x${string}`, MERCHANT_ADDR, BigInt(amount), BigInt(expiry), BigInt(nonce)]
+)
 
     const isWhitelisted = await publicClient.readContract({
       address:SCHEDULER, abi:ABI,
