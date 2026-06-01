@@ -1,9 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from "react";
-import { WagmiProvider, createConfig, http, useAccount, usePublicClient, useConnect, useDisconnect } from "wagmi";
-import { injected, walletConnect } from "@wagmi/connectors";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { parseUnits } from "viem";
+import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
 
 const arcTestnet = {
   id: 5042002,
@@ -13,15 +10,8 @@ const arcTestnet = {
   blockExplorers: { default: { name: "ArcScan", url: "https://testnet.arcscan.app" } },
 } as const;
 
-const config = createConfig({
-  chains: [arcTestnet],
-  connectors: [injected(), walletConnect({ projectId: "16ae252cb60ef79babb68adf4ca2f23d" })],
-  transports: { [arcTestnet.id]: http() },
-});
-const queryClient = new QueryClient();
-
-const SCHEDULER = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa" as const;
-const USDC      = "0x3600000000000000000000000000000000000000" as const;
+const SCHEDULER = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa" as `0x${string}`;
+const USDC      = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 
 const SCHEDULER_ABI = [
   { type:"function", name:"createSchedule",
@@ -41,10 +31,6 @@ const SCHEDULER_ABI = [
       {name:"nextExecution",type:"uint256"},{name:"active",type:"bool"},
       {name:"label",type:"string"},
     ]}] },
-  { type:"function", name:"addToWhitelist",
-    inputs:[{name:"addr",type:"address"}], outputs:[] },
-  { type:"function", name:"toggleSchedule",
-    inputs:[{name:"index",type:"uint256"}], outputs:[] },
   { type:"function", name:"weeklyRemaining",
     inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"uint256"}] },
 ] as const;
@@ -62,16 +48,22 @@ const USDC_ABI = [
 ] as const;
 
 const INTERVALS = [
-  { label:"Weekly",     seconds: 604800  },
-  { label:"Bi-weekly",  seconds: 1209600 },
-  { label:"Monthly",    seconds: 2592000 },
-  { label:"Quarterly",  seconds: 7776000 },
+  { label:"Weekly",    seconds:604800   },
+  { label:"Bi-weekly", seconds:1209600  },
+  { label:"Monthly",   seconds:2592000  },
+  { label:"Quarterly", seconds:7776000  },
 ];
 
 function shortAddr(addr: string) {
   return addr ? addr.slice(0,6)+"..."+addr.slice(-4) : "";
 }
+
 type TxState = "idle"|"approving"|"creating"|"executing"|"success"|"error";
+
+const publicClient = createPublicClient({
+  chain: arcTestnet,
+  transport: http(),
+});
 function StatusPill({ active }: { active: boolean }) {
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:(active?"#00e5a0":"#ff4d6d")+"18", color:active?"#00e5a0":"#ff4d6d", borderRadius:4, padding:"2px 9px", fontSize:11, fontWeight:600 }}>
@@ -81,53 +73,17 @@ function StatusPill({ active }: { active: boolean }) {
   );
 }
 
-function WalletBar() {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors }  = useConnect();
-  const { disconnect }           = useDisconnect();
-  const publicClient             = usePublicClient();
-  const [balance, setBalance]    = useState<string|null>(null);
-
-  useEffect(() => {
-    if (!address || !publicClient) return;
-    (publicClient.readContract({ address:USDC, abi:USDC_ABI, functionName:"balanceOf", args:[address] }) as Promise<bigint>)
-      .then(raw => setBalance((Number(raw)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2})))
-      .catch(()=>setBalance(null));
-  }, [address, publicClient]);
-
-  if (!isConnected) return (
-    <button className="connect-btn" onClick={()=>connect({ connector: connectors[0] })}>
-      Connect Wallet
-    </button>
-  );
-  return (
-    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-      <div style={{ textAlign:"right" }}>
-        <div style={{ fontSize:11, color:"#3dd6f5", fontWeight:500 }}>{shortAddr(address!)}</div>
-        <div style={{ fontSize:10, color:"#2e5070" }}>{balance ?? "..."} USDC</div>
-      </div>
-      <button className="disconnect-btn" onClick={()=>disconnect()}>✕</button>
-    </div>
-  );
-}
-
-function ArcPayrollInner() {
-  const { address, isConnected }  = useAccount();
-  const { data: connectorClient } = useConnectorClient();
-  const walletClient = connectorClient ? { writeContract: (args: any) => connectorClient.request({ method: "eth_sendTransaction", params: [args] }), signMessage: (args: any) => connectorClient.request({ method: "personal_sign", params: [args.message.raw, address] }) } : null;
-  const publicClient              = usePublicClient();
-
+export default function ArcPayroll() {
+  const [address,   setAddress]   = useState<`0x${string}`|null>(null);
+  const [balance,   setBalance]   = useState<string|null>(null);
+  const [connecting,setConnecting]= useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [scanLine,  setScanLine]  = useState(0);
   const [txState,   setTxState]   = useState<TxState>("idle");
   const [txHash,    setTxHash]    = useState("");
   const [txError,   setTxError]   = useState("");
-
-  // on-chain schedules
   const [schedules, setSchedules] = useState<any[]>([]);
-  const [weeklyLeft, setWeeklyLeft] = useState<string|null>(null);
-
-  // create form
+  const [weeklyLeft,setWeeklyLeft]= useState<string|null>(null);
   const [form, setForm] = useState({ to:"", amount:"", interval:2592000, label:"" });
 
   useEffect(() => {
@@ -135,43 +91,92 @@ function ArcPayrollInner() {
     return ()=>clearInterval(t);
   }, []);
 
+  const getWalletClient = useCallback(() => {
+    if (typeof window === "undefined" || !window.ethereum || !address) return null;
+    return createWalletClient({
+      account: address,
+      chain: arcTestnet,
+      transport: custom(window.ethereum as any),
+    });
+  }, [address]);
+
+  const connect = useCallback(async () => {
+    if (typeof window === "undefined" || !window.ethereum) {
+      alert("No wallet found. Please open in MetaMask browser.");
+      return;
+    }
+    setConnecting(true);
+    try {
+      const accounts = await (window.ethereum as any).request({ method:"eth_requestAccounts" });
+      const addr = accounts[0] as `0x${string}`;
+      setAddress(addr);
+      // switch to Arc Testnet
+      try {
+        await (window.ethereum as any).request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: "0x4CE8B2" }],
+        });
+      } catch {
+        await (window.ethereum as any).request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: "0x4CE8B2",
+            chainName: "Arc Testnet",
+            nativeCurrency: { name:"USDC", symbol:"USDC", decimals:18 },
+            rpcUrls: ["https://rpc.testnet.arc.network"],
+            blockExplorerUrls: ["https://testnet.arcscan.app"],
+          }],
+        });
+      }
+      // fetch USDC balance
+      const raw = await publicClient.readContract({
+        address:USDC, abi:USDC_ABI, functionName:"balanceOf", args:[addr],
+      }) as bigint;
+      setBalance((Number(raw)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2}));
+    } catch(e:any) {
+      alert("Connect failed: "+e.message);
+    }
+    setConnecting(false);
+  }, []);
+
+  const disconnect = useCallback(() => {
+    setAddress(null); setBalance(null); setSchedules([]);
+  }, []);
+
   const fetchSchedules = useCallback(async () => {
-    if (!address || !publicClient) return;
+    if (!address) return;
     try {
       const rows = await publicClient.readContract({
-        address:SCHEDULER, abi:SCHEDULER_ABI,
-        functionName:"getSchedules", args:[address],
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getSchedules", args:[address],
       }) as any[];
       setSchedules(rows);
       const rem = await publicClient.readContract({
-        address:SCHEDULER, abi:SCHEDULER_ABI,
-        functionName:"weeklyRemaining", args:[address],
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"weeklyRemaining", args:[address],
       }) as bigint;
       setWeeklyLeft((Number(rem)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2}));
     } catch(e) { console.error(e); }
-  }, [address, publicClient]);
+  }, [address]);
 
   useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
 
-  // Create a new schedule
   const handleCreate = useCallback(async () => {
-    if (!isConnected||!walletClient||!publicClient||!address||!form.to||!form.amount) return;
-    alert("wallet:"+!!walletClient+" public:"+!!publicClient+" addr:"+!!address); setTxState("approving"); setTxError("");
+    const wc = getWalletClient();
+    if (!wc || !address || !form.to || !form.amount) return;
+    setTxState("approving"); setTxError("");
     try {
       const amount = parseUnits(form.amount, 6);
       const allowance = await publicClient.readContract({
-        address:USDC, abi:USDC_ABI, functionName:"allowance",
-        args:[address, SCHEDULER],
+        address:USDC, abi:USDC_ABI, functionName:"allowance", args:[address, SCHEDULER],
       }) as bigint;
-      if (allowance < amount * 100n) {
-        const ah = await walletClient.writeContract({
+      if (allowance < amount) {
+        const ah = await wc.writeContract({
           address:USDC, abi:USDC_ABI, functionName:"approve",
-          args:[SCHEDULER, parseUnits("1000000", 6)],
+          args:[SCHEDULER, parseUnits("1000000",6)],
         });
         await publicClient.waitForTransactionReceipt({ hash:ah });
       }
       setTxState("creating");
-      const hash = await walletClient.writeContract({
+      const hash = await wc.writeContract({
         address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"createSchedule",
         args:[form.to as `0x${string}`, amount, BigInt(form.interval), form.label||"Employee"],
       });
@@ -180,46 +185,42 @@ function ArcPayrollInner() {
       setTxState("success");
       await fetchSchedules();
       setTimeout(()=>{ setTxState("idle"); setTxHash(""); setForm({to:"",amount:"",interval:2592000,label:""}); }, 6000);
-    } catch(e:unknown) {
-      setTxError(e instanceof Error ? e.message : "Transaction failed");
+    } catch(e:any) {
+      setTxError(e.message||"Failed");
       setTxState("error");
       setTimeout(()=>setTxState("idle"), 5000);
     }
-  }, [isConnected, walletClient, publicClient, address, form, fetchSchedules]);
+  }, [address, form, getWalletClient, fetchSchedules]);
 
-  // Execute an existing schedule
   const handleExecute = useCallback(async (index: number) => {
-    if (!isConnected||!walletClient||!publicClient||!address) return;
+    const wc = getWalletClient();
+    if (!wc || !address) return;
     setTxState("executing"); setTxError("");
     try {
       const [ok, reason] = await publicClient.readContract({
-        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"canExecute",
-        args:[address, BigInt(index)],
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"canExecute", args:[address, BigInt(index)],
       }) as [boolean, string];
       if (!ok) throw new Error(reason);
-      const hash = await walletClient.writeContract({
-        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"executeSchedule",
-        args:[address, BigInt(index)],
+      const hash = await wc.writeContract({
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"executeSchedule", args:[address, BigInt(index)],
       });
       await publicClient.waitForTransactionReceipt({ hash });
       setTxHash(hash);
       setTxState("success");
       await fetchSchedules();
       setTimeout(()=>{ setTxState("idle"); setTxHash(""); }, 6000);
-    } catch(e:unknown) {
-      setTxError(e instanceof Error ? e.message : "Execution failed");
+    } catch(e:any) {
+      setTxError(e.message||"Failed");
       setTxState("error");
       setTimeout(()=>setTxState("idle"), 5000);
     }
-  }, [isConnected, walletClient, publicClient, address, fetchSchedules]);
+  }, [address, getWalletClient, fetchSchedules]);
 
-  const totalMonthly = schedules
-    .filter(s=>s.active)
-    .reduce((sum,s)=>{
-      const base = Number(s.amount)/1_000_000;
-      const mult = Number(s.interval)<=604800 ? 4 : Number(s.interval)<=1209600 ? 2 : Number(s.interval)>=7776000 ? 0.33 : 1;
-      return sum + base * mult;
-    }, 0);
+  const totalMonthly = schedules.filter(s=>s.active).reduce((sum,s)=>{
+    const base = Number(s.amount)/1_000_000;
+    const mult = Number(s.interval)<=604800?4:Number(s.interval)<=1209600?2:Number(s.interval)>=7776000?0.33:1;
+    return sum+base*mult;
+  }, 0);
   return (
     <div style={{ minHeight:"100vh", background:"#080b10", fontFamily:"'DM Mono','Fira Mono',monospace", color:"#c8d6e5", position:"relative", overflow:"hidden" }}>
       <style>{`
@@ -266,7 +267,6 @@ function ArcPayrollInner() {
       <div style={{position:"fixed",top:-200,right:-100,width:600,height:600,background:"radial-gradient(circle,rgba(13,79,130,.18),transparent 70%)",pointerEvents:"none",zIndex:0}}/>
 
       <div style={{position:"relative",zIndex:2,maxWidth:1020,margin:"0 auto",padding:"0 24px 80px"}}>
-
         <div style={{paddingTop:36,paddingBottom:24,borderBottom:"1px solid #111e2b",marginBottom:28,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
             <div style={{display:"flex",alignItems:"baseline",gap:10}}>
@@ -280,7 +280,19 @@ function ArcPayrollInner() {
               <div style={{width:6,height:6,borderRadius:"50%",background:"#00e5a0",animation:"pulse 2s infinite"}}/>
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
-            <WalletBar/>
+            {!address ? (
+              <button className="connect-btn" onClick={connect} disabled={connecting}>
+                {connecting?"Connecting…":"Connect Wallet"}
+              </button>
+            ) : (
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:"#3dd6f5",fontWeight:500}}>{shortAddr(address)}</div>
+                  <div style={{fontSize:10,color:"#2e5070"}}>{balance??"-"} USDC</div>
+                </div>
+                <button className="disconnect-btn" onClick={disconnect}>✕</button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -317,29 +329,27 @@ function ArcPayrollInner() {
 
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Create Payment Schedule</div>
-              {!isConnected && (
+              {!address && (
                 <div style={{padding:"28px 0",textAlign:"center"}}>
-                  <div style={{color:"#2e5070",fontSize:12,marginBottom:14}}>Connect your wallet to create a schedule</div>
-                  <WalletBar/>
+                  <div style={{color:"#2e5070",fontSize:12,marginBottom:14}}>Open in MetaMask browser and connect wallet</div>
+                  <button className="connect-btn" onClick={connect} disabled={connecting}>{connecting?"Connecting…":"Connect Wallet"}</button>
                 </div>
               )}
-              {isConnected && txState==="success" && (
+              {address && txState==="success" && (
                 <div className="success-pop" style={{padding:"32px 0",textAlign:"center"}}>
                   <div style={{fontSize:28,marginBottom:10,color:"#00e5a0"}}>✓</div>
-                  <div style={{color:"#00e5a0",fontSize:12,letterSpacing:".1em"}}>
-                    {txState==="success" ? "Schedule Created / Payment Sent" : "Done"}
-                  </div>
+                  <div style={{color:"#00e5a0",fontSize:12,letterSpacing:".1em"}}>Success</div>
                   <div style={{color:"#2e5070",fontSize:11,marginTop:6}}>Signed · broadcast · on-chain confirmed</div>
-                  {txHash && <div style={{marginTop:10,fontSize:10,color:"#3dd6f5"}}>TX: <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>{txHash.slice(0,14)}…</a></div>}
+                  {txHash && <div style={{marginTop:10,fontSize:10}}><a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>View on ArcScan →</a></div>}
                 </div>
               )}
-              {isConnected && txState==="error" && (
+              {address && txState==="error" && (
                 <div style={{padding:"20px 0",textAlign:"center"}}>
                   <div style={{color:"#ff4d6d",fontSize:12,marginBottom:6}}>Failed</div>
-                  <div style={{color:"#2e5070",fontSize:11,maxWidth:400,margin:"0 auto"}}>{txError}</div>
+                  <div style={{color:"#2e5070",fontSize:11,maxWidth:400,margin:"0 auto",wordBreak:"break-all"}}>{txError}</div>
                 </div>
               )}
-              {isConnected && !["success","error"].includes(txState) && (
+              {address && !["success","error"].includes(txState) && (
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                     <div>
@@ -365,11 +375,11 @@ function ArcPayrollInner() {
                   </div>
                   <div style={{fontSize:10,color:"#1e3a50",borderTop:"1px solid #0e1b28",paddingTop:12,lineHeight:1.7}}>
                     <span style={{color:"#2e5070"}}>Flow: </span>
-                    approve USDC → createSchedule on-chain → executeSchedule when due · no bank · no clearinghouse
+                    approve USDC → createSchedule on-chain → executeSchedule when due
                   </div>
-                  <button className="submit-btn" onClick={()=>alert("eth:"+!!(typeof window!=="undefined"&&window.ethereum)+" wc:"+!!walletClient)} disabled={false}>
-                    {txState==="approving" ? <><span className="spinning">◌</span> Approving USDC…</>
-                    :txState==="creating"  ? <><span className="spinning">◌</span> Creating Schedule…</>
+                  <button className="submit-btn" onClick={handleCreate} disabled={txState!=="idle"||!form.to||!form.amount}>
+                    {txState==="approving"?<><span className="spinning">◌</span> Approving USDC…</>
+                    :txState==="creating"?<><span className="spinning">◌</span> Creating Schedule…</>
                     :"Create Schedule →"}
                   </button>
                 </div>
@@ -385,26 +395,26 @@ function ArcPayrollInner() {
                 On-Chain Schedules
                 <button onClick={fetchSchedules} style={{marginLeft:12,background:"none",border:"1px solid #1a2a3a",color:"#3dd6f5",fontSize:9,padding:"2px 8px",borderRadius:3,cursor:"pointer"}}>↻ Refresh</button>
               </div>
-              {!isConnected && <div style={{color:"#2e5070",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
-              {isConnected && schedules.length===0 && <div style={{color:"#2e5070",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
-              {isConnected && schedules.length>0 && (
+              {!address && <div style={{color:"#2e5070",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
+              {address && schedules.length===0 && <div style={{color:"#2e5070",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
+              {address && schedules.length>0 && (
                 <>
-                  <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 80px",gap:10,padding:"6px 14px",fontSize:10,color:"#2e5070",letterSpacing:".08em",marginBottom:4}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 90px",gap:10,padding:"6px 14px",fontSize:10,color:"#2e5070",marginBottom:4}}>
                     <span>Recipient</span><span>Label</span><span>Amount</span><span>Interval</span><span>Status</span><span>Action</span>
                   </div>
                   {schedules.map((row,i)=>{
-                    const amt = (Number(row.amount)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2});
-                    const intervalLabel = INTERVALS.find(iv=>iv.seconds===Number(row.interval))?.label ?? `${Number(row.interval)}s`;
-                    const nextDate = new Date(Number(row.nextExecution)*1000).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+                    const amt=(Number(row.amount)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2});
+                    const iv=INTERVALS.find(iv=>iv.seconds===Number(row.interval))?.label??`${Number(row.interval)}s`;
+                    const next=new Date(Number(row.nextExecution)*1000).toLocaleDateString("en-US",{month:"short",day:"numeric"});
                     return (
-                      <div key={i} className="row-item" style={{gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 80px"}}>
+                      <div key={i} className="row-item" style={{gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 90px"}}>
                         <span style={{color:"#3dd6f5",fontSize:11}}>{shortAddr(row.recipient)}</span>
                         <span style={{color:"#8ab4cc",fontSize:11}}>{row.label}</span>
                         <span style={{fontVariantNumeric:"tabular-nums"}}>{amt}</span>
-                        <span style={{color:"#a78bfa",fontSize:11}}>{intervalLabel}</span>
+                        <span style={{color:"#a78bfa",fontSize:11}}>{iv}</span>
                         <StatusPill active={row.active}/>
                         <button className="exec-btn" onClick={()=>handleExecute(i)} disabled={txState!=="idle"}>
-                          {txState==="executing" ? <span className="spinning">◌</span> : `Send · ${nextDate}`}
+                          {txState==="executing"?<span className="spinning">◌</span>:`Send·${next}`}
                         </button>
                       </div>
                     );
@@ -412,18 +422,15 @@ function ArcPayrollInner() {
                 </>
               )}
             </div>
-            {txState==="success" && txHash && (
+            {txHash && txState==="success" && (
               <div style={{marginTop:14,padding:"12px 16px",border:"1px solid #00e5a044",borderRadius:5,display:"flex",gap:12,alignItems:"center"}}>
                 <span style={{color:"#00e5a0"}}>✓</span>
-                <span style={{fontSize:11,color:"#2e5070"}}>
-                  TX confirmed on Arc Testnet —{" "}
-                  <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5",textDecoration:"none"}}>{txHash.slice(0,14)}…</a>
-                </span>
+                <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#3dd6f5",textDecoration:"none"}}>View TX on ArcScan →</a>
               </div>
             )}
             {txState==="error" && (
               <div style={{marginTop:14,padding:"12px 16px",border:"1px solid #ff4d6d44",borderRadius:5}}>
-                <span style={{fontSize:11,color:"#ff4d6d"}}>{txError}</span>
+                <span style={{fontSize:11,color:"#ff4d6d",wordBreak:"break-all"}}>{txError}</span>
               </div>
             )}
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -435,15 +442,5 @@ function ArcPayrollInner() {
 
       </div>
     </div>
-  );
-}
-
-export default function ArcPayroll() {
-  return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <ArcPayrollInner/>
-      </QueryClientProvider>
-    </WagmiProvider>
   );
 }
