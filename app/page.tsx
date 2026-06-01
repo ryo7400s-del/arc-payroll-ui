@@ -92,32 +92,32 @@ export default function ArcPayroll() {
   }, []);
 
   const getWalletClient = useCallback(() => {
-    if (typeof window === "undefined" || !window.ethereum || !address) return null;
+    if (typeof window === "undefined" || !(window as any).ethereum || !address) return null;
     return createWalletClient({
       account: address,
       chain: arcTestnet,
-      transport: custom(window.ethereum as any),
+      transport: custom((window as any).ethereum),
     });
   }, [address]);
 
   const connect = useCallback(async () => {
-    if (typeof window === "undefined" || !window.ethereum) {
+    if (typeof window === "undefined" || !(window as any).ethereum) {
       alert("No wallet found. Please open in MetaMask browser.");
       return;
     }
     setConnecting(true);
     try {
-      const accounts = await (window.ethereum as any).request({ method:"eth_requestAccounts" });
+      const accounts = await ((window as any).ethereum).request({ method:"eth_requestAccounts" });
       const addr = accounts[0] as `0x${string}`;
       setAddress(addr);
       // switch to Arc Testnet
       try {
-        await (window.ethereum as any).request({
+        await ((window as any).ethereum).request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: "0x4CE8B2" }],
         });
       } catch {
-        await (window.ethereum as any).request({
+        await ((window as any).ethereum).request({
           method: "wallet_addEthereumChain",
           params: [{
             chainId: "0x4CE8B2",
