@@ -8,7 +8,7 @@ const arcTestnet = {
   rpcUrls: { default: { http: ["https://rpc.testnet.arc.network"] } },
 } as const;
 
-const SCHEDULER = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa" as `0x${string}`;
+const SCHEDULER = "0x5692fd41eb6289980c2a051f0c0fafa2b889743f" as `0x${string}`;
 const MERCHANT  = "0x2032C2aC5cdB02b2e0D46e015Af991C257edd388" as `0x${string}`;
 
 const ABI = [

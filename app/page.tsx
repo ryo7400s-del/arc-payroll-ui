@@ -10,7 +10,7 @@ const arcTestnet = {
   blockExplorers: { default: { name: "ArcScan", url: "https://testnet.arcscan.app" } },
 } as const;
 
-const SCHEDULER = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa" as `0x${string}`;
+const SCHEDULER = "0x5692fd41eb6289980c2a051f0c0fafa2b889743f" as `0x${string}`;
 const USDC      = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 
 const SCHEDULER_ABI = [
@@ -102,7 +102,7 @@ function X402Send({ address }: { address: string }) {
 
       // Step3: USDC approve + executeX402Payment
       setState("paying");
-      const SCHED = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa" as `0x${string}`;
+      const SCHED = "0x5692fd41eb6289980c2a051f0c0fafa2b889743f" as `0x${string}`;
       const USDC_ABI = [{ type:"function", name:"approve", inputs:[{name:"spender",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}] },{ type:"function", name:"allowance", inputs:[{name:"owner",type:"address"},{name:"spender",type:"address"}], outputs:[{type:"uint256"}] }] as const;
       const X402_ABI = [{ type:"function", name:"executeX402Payment", inputs:[{ name:"req", type:"tuple", components:[{name:"payer",type:"address"},{name:"merchant",type:"address"},{name:"amount",type:"uint256"},{name:"expiry",type:"uint256"},{name:"nonce",type:"uint256"},{name:"signature",type:"bytes"}]}], outputs:[] }] as const;
       const allowance = await pc.readContract({ address:USDC2, abi:USDC_ABI, functionName:"allowance", args:[address as `0x${string}`, SCHED] }) as bigint;
