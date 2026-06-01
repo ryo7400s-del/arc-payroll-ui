@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const innerHash = keccak256(
     encodeAbiParameters(parseAbiParameters("address, address, uint256, uint256, uint256"),
   [payer as `0x${string}`, MERCHANT_ADDR, BigInt(amount), BigInt(expiry), BigInt(nonce)]
-)
+);
 
     const isWhitelisted = await publicClient.readContract({
       address:SCHEDULER, abi:ABI,
