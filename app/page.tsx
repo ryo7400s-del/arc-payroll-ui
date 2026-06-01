@@ -167,7 +167,7 @@ export default function ArcPayroll() {
   useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
 
   const handleCreate = useCallback(async () => {
-    const wc = getWalletClient();
+    const wc = typeof window !== "undefined" && (window as any).ethereum ? createWalletClient({ account: address!, chain: arcTestnet, transport: custom((window as any).ethereum) }) : null;
     if (!wc || !address || !form.to || !form.amount) return;
     setTxState("approving"); setTxError("");
     try {
@@ -200,7 +200,7 @@ export default function ArcPayroll() {
   }, [address, form, getWalletClient, fetchSchedules]);
 
   const handleExecute = useCallback(async (index: number) => {
-    const wc = getWalletClient();
+    const wc = typeof window !== "undefined" && (window as any).ethereum ? createWalletClient({ account: address!, chain: arcTestnet, transport: custom((window as any).ethereum) }) : null;
     if (!wc || !address) return;
     setTxState("executing"); setTxError("");
     try {
