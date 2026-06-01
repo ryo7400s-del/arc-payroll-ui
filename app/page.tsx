@@ -66,6 +66,55 @@ const publicClient = createPublicClient({
   chain: arcTestnet,
   transport: http(),
 });
+function X402Report({ address }: { address: string }) {
+  const [state, setState] = useState<"idle"|"paying"|"loading"|"done"|"error">("idle");
+  const [report, setReport] = useState<any>(null);
+  const [errMsg, setErrMsg] = useState("");
+  const handlePay = async () => {
+    if (!(window as any).ethereum) return;
+    setState("paying");
+    try {
+      const { createWalletClient, createPublicClient, custom, http, parseUnits } = await import("viem");
+      const arc = { id:5042002, name:"Arc Testnet", nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18}, rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}, blockExplorers:{default:{name:"ArcScan",url:"https://testnet.arcscan.app"}} } as const;
+      const wc = createWalletClient({ account: address as `0x${string}`, chain: arc, transport: custom((window as any).ethereum) });
+      const pc = createPublicClient({ chain: arc, transport: http() });
+      const USDC2 = "0x3600000000000000000000000000000000000000" as `0x${string}`;
+      const RECV = "0x2032C2aC5cdB02b2e0D46e015Af991C257edd388" as `0x${string}`;
+      const ABI2 = [{ type:"function", name:"transfer", inputs:[{name:"to",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}] }] as const;
+      const hash = await wc.writeContract({ address:USDC2, abi:ABI2, functionName:"transfer", args:[RECV, parseUnits("1",6)] });
+      await pc.waitForTransactionReceipt({ hash });
+      setState("loading");
+      const res = await fetch(`/api/report?payer=${address}&tx=${hash}`);
+      const data = await res.json();
+      if (res.status === 402) throw new Error(data.error);
+      setReport(data.report);
+      setState("done");
+    } catch(e: any) { setErrMsg(e.message||"Failed"); setState("error"); setTimeout(()=>setState("idle"),5000); }
+  };
+  if (state==="done" && report) return (
+    <div className="success-pop">
+      <div style={{fontSize:10,color:"#00e5a0",marginBottom:12,letterSpacing:".1em"}}>✓ PAYMENT VERIFIED · REPORT UNLOCKED</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+        {report.employees.map((e:any,i:number)=>(
+          <div key={i} style={{background:"#070e18",border:"1px solid #0e1b28",borderRadius:4,padding:"10px 12px"}}>
+            <div style={{fontSize:11,color:"#8ab4cc"}}>{e.label}</div>
+            <div style={{fontSize:14,color:"#3dd6f5",fontWeight:700,marginTop:4}}>{e.amount} USDC</div>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:10,color:"#2e5070"}}>Total: <span style={{color:"#ffd166"}}>{report.totalDisbursed} USDC</span> · {report.month}</div>
+    </div>
+  );
+  return (
+    <button className="submit-btn" onClick={handlePay} disabled={state!=="idle"}>
+      {state==="paying"?<><span className="spinning">◌</span> Sending 1 USDC…</>
+      :state==="loading"?<><span className="spinning">◌</span> Verifying on-chain…</>
+      :state==="error"?`Error: ${errMsg}`
+      :"Pay 1 USDC · Unlock Report (x402) →"}
+    </button>
+  );
+}
+
 function StatusPill({ active }: { active: boolean }) {
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:(active?"#00e5a0":"#ff4d6d")+"18", color:active?"#00e5a0":"#ff4d6d", borderRadius:4, padding:"2px 9px", fontSize:11, fontWeight:600 }}>
