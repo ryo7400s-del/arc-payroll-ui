@@ -85,7 +85,7 @@ function X402Send({ address }: { address: string }) {
 
       // Step2: 署名
       setState("signing");
-      const { createWalletClient, createPublicClient, custom, http, parseUnits, keccak256, encodePacked, toBytes } = await import("viem");
+      const { createWalletClient, createPublicClient, custom, http, parseUnits, keccak256, encodeAbiParameters, parseAbiParameters, toBytes } = await import("viem");
       const arc = { id:5042002, name:"Arc Testnet", nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18}, rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}, blockExplorers:{default:{name:"ArcScan",url:"https://testnet.arcscan.app"}} } as const;
       const wc = createWalletClient({ account:address as `0x${string}`, chain:arc, transport:custom((window as any).ethereum) });
       const pc = createPublicClient({ chain:arc, transport:http() });
@@ -94,10 +94,7 @@ function X402Send({ address }: { address: string }) {
       const amount = BigInt(info.x402.amount);
       const nonce  = BigInt(Date.now());
       const expiry = BigInt(Math.floor(Date.now()/1000)+300);
-      const innerHash = keccak256(encodePacked(
-        ["address","address","uint256","uint256","uint256"],
-        [address as `0x${string}`, MERCHANT, amount, expiry, nonce]
-      ));
+      const innerHash = keccak256(encodeAbiParameters(parseAbiParameters("address, address, uint256, uint256, uint256"), [address as `0x${string}`, MERCHANT, amount, expiry, nonce]));
       const signature = await wc.signMessage({ message:{ raw: toBytes(innerHash) } });
 
       // Step3: USDC approve + executeX402Payment
