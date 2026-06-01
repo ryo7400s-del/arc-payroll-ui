@@ -73,6 +73,8 @@ function X402Send({ address }: { address: string }) {
   const [data, setData] = useState<any>(null);
   const [errMsg, setErrMsg] = useState("");
   const [content, setContent] = useState("payroll-report");
+  const [x402Merchant, setX402Merchant] = useState("");
+  const [x402Amount, setX402Amount] = useState("1");
 
   const handleFlow = async () => {
     if (!(window as any).ethereum) return;
@@ -89,7 +91,7 @@ function X402Send({ address }: { address: string }) {
       const arc = { id:5042002, name:"Arc Testnet", nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18}, rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}, blockExplorers:{default:{name:"ArcScan",url:"https://testnet.arcscan.app"}} } as const;
       const wc = createWalletClient({ account:address as `0x${string}`, chain:arc, transport:custom((window as any).ethereum) });
       const pc = createPublicClient({ chain:arc, transport:http() });
-      const MERCHANT = "0x2032C2aC5cdB02b2e0D46e015Af991C257edd388" as `0x${string}`;
+      const MERCHANT = info.x402.merchant as `0x${string}`;
       const USDC2 = "0x3600000000000000000000000000000000000000" as `0x${string}`;
       const amount = BigInt(info.x402.amount);
       const nonce  = BigInt(Date.now());
@@ -146,6 +148,10 @@ function X402Send({ address }: { address: string }) {
     </div>
   );
 
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+        <div><div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Merchant Address (optional)</div><input className="input-field" placeholder="0x... (default: self)" value={x402Merchant} onChange={e=>setX402Merchant(e.target.value)}/></div>
+        <div><div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Amount (USDC)</div><input className="input-field" placeholder="1.00" type="number" value={x402Amount} onChange={e=>setX402Amount(e.target.value)}/></div>
+      </div>
   return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
       <div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Select Content</div>
