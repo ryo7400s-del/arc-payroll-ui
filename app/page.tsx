@@ -111,23 +111,30 @@ export default function ArcPayroll() {
       const addr = accounts[0] as `0x${string}`;
       setAddress(addr);
       // switch to Arc Testnet
-      try {
-        await ((window as any).ethereum).request({
+     try {
+        await (window.ethereum as any).request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: "0x4CE8B2" }],
         });
       } catch {
-        await ((window as any).ethereum).request({
-          method: "wallet_addEthereumChain",
-          params: [{
-            chainId: "0x4CE8B2",
-            chainName: "Arc Testnet",
-            nativeCurrency: { name:"USDC", symbol:"USDC", decimals:18 },
-            rpcUrls: ["https://rpc.testnet.arc.network"],
-            blockExplorerUrls: ["https://testnet.arcscan.app"],
-          }],
-        });
+        try {
+          await (window.ethereum as any).request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: "0x4CE8B2",
+              chainName: "Arc Testnet",
+              nativeCurrency: { name:"USDC", symbol:"USDC", decimals:18 },
+              rpcUrls: ["https://rpc.testnet.arc.network"],
+              blockExplorerUrls: ["https://testnet.arcscan.app"],
+            }],
+          });
+          await (window.ethereum as any).request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0x4CE8B2" }],
+          });
+        } catch(e2) { console.log("chain setup:", e2); }
       }
+     
       // fetch USDC balance
       const raw = await publicClient.readContract({
         address:USDC, abi:USDC_ABI, functionName:"balanceOf", args:[addr],
