@@ -96,7 +96,7 @@ function WalletBar() {
   }, [address, publicClient]);
 
   if (!isConnected) return (
-    <button className="connect-btn" onClick={()=>connect({ connector: connectors[1] ?? connectors[0] })}>
+    <button className="connect-btn" onClick={()=>connect({ connector: connectors[0] })}>
       Connect Wallet
     </button>
   );
