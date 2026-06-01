@@ -31,6 +31,8 @@ const SCHEDULER_ABI = [
       {name:"nextExecution",type:"uint256"},{name:"active",type:"bool"},
       {name:"label",type:"string"},
     ]}] },
+  { type:"function", name:"addToWhitelist", inputs:[{name:"addr",type:"address"}], outputs:[] },
+  { type:"function", name:"getWhitelist", inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"address[]"}] },
   { type:"function", name:"weeklyRemaining",
     inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"uint256"}] },
 ] as const;
@@ -441,7 +443,29 @@ export default function ArcPayroll() {
               </div>
             )}
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontSize:10,color:"#2e5070"}}>PaymentScheduler Contract</span>
+            </div>
+
+            <div className="card" style={{marginTop:16}}>
+              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Whitelist Address</div>
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <div>
+                  <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Wallet Address to Whitelist</div>
+                  <input className="input-field" placeholder="0x..." id="wl-input"/>
+                </div>
+                <button className="submit-btn" onClick={async()=>{
+                  const addr=(document.getElementById("wl-input") as HTMLInputElement).value;
+                  if(!addr||!address) return;
+                  const wc=createWalletClient({account:address,chain:arcTestnet,transport:custom((window as any).ethereum)});
+                  try{
+                    const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"addToWhitelist",args:[addr as `0x${string}`]});
+                    await publicClient.waitForTransactionReceipt({hash:h});
+                    alert("✅ Whitelisted! " + addr);
+                  }catch(e:any){alert("Failed: "+e.message);}
+                }}>Add to Whitelist 2192</button>
+              </div>
+            </div>
+
+            <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <a href={`https://testnet.arcscan.app/address/${SCHEDULER}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>{SCHEDULER.slice(0,10)}…</a>
             </div>
           </div>
