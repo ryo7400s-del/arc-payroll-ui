@@ -67,41 +67,102 @@ const publicClient = createPublicClient({
   transport: http(),
 });
 function X402Send({ address }: { address: string }) {
-  const [to, setTo] = useState("");
-  const [amt, setAmt] = useState("");
-  const [state, setState] = useState<"idle"|"paying"|"done"|"error">("idle");
+  const [state, setState] = useState<"idle"|"step1"|"signing"|"paying"|"done"|"error">("idle");
+  const [x402Info, setX402Info] = useState<any>(null);
   const [txHash, setTxHash] = useState("");
+  const [data, setData] = useState<any>(null);
   const [errMsg, setErrMsg] = useState("");
-  const handleSend = async () => {
-    if (!to||!amt||!(window as any).ethereum) return;
-    setState("paying");
+  const [content, setContent] = useState("payroll-report");
+
+  const handleFlow = async () => {
+    if (!(window as any).ethereum) return;
+    setState("step1");
     try {
-      const { createWalletClient, createPublicClient, custom, http, parseUnits } = await import("viem");
+      // Step1: GET /api/x402 → 402レスポンス受け取る
+      const r1 = await fetch("/api/x402");
+      const info = await r1.json();
+      setX402Info(info.x402);
+
+      // Step2: 署名
+      setState("signing");
+      const { createWalletClient, createPublicClient, custom, http, parseUnits, keccak256, encodePacked, toBytes } = await import("viem");
       const arc = { id:5042002, name:"Arc Testnet", nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18}, rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}, blockExplorers:{default:{name:"ArcScan",url:"https://testnet.arcscan.app"}} } as const;
       const wc = createWalletClient({ account:address as `0x${string}`, chain:arc, transport:custom((window as any).ethereum) });
       const pc = createPublicClient({ chain:arc, transport:http() });
-      const USDC2="0x3600000000000000000000000000000000000000" as `0x${string}`;
-      const ABI2=[{ type:"function", name:"transfer", inputs:[{name:"to",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}] }] as const;
-      const hash = await wc.writeContract({ address:USDC2, abi:ABI2, functionName:"transfer", args:[to as `0x${string}`, parseUnits(amt,6)] });
+      const MERCHANT = "0x2032C2aC5cdB02b2e0D46e015Af991C257edd388" as `0x${string}`;
+      const USDC2 = "0x3600000000000000000000000000000000000000" as `0x${string}`;
+      const amount = BigInt(info.x402.amount);
+      const nonce  = BigInt(Date.now());
+      const expiry = BigInt(Math.floor(Date.now()/1000)+300);
+      const innerHash = keccak256(encodePacked(
+        ["address","address","uint256","uint256","uint256"],
+        [address as `0x${string}`, MERCHANT, amount, expiry, nonce]
+      ));
+      const signature = await wc.signMessage({ message:{ raw: toBytes(innerHash) } });
+
+      // Step3: USDC approve + executeX402Payment
+      setState("paying");
+      const SCHED = "0xdd3605558e264ceac47b219d5aface9b4f09b0aa" as `0x${string}`;
+      const USDC_ABI = [{ type:"function", name:"approve", inputs:[{name:"spender",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}] },{ type:"function", name:"allowance", inputs:[{name:"owner",type:"address"},{name:"spender",type:"address"}], outputs:[{type:"uint256"}] }] as const;
+      const X402_ABI = [{ type:"function", name:"executeX402Payment", inputs:[{ name:"req", type:"tuple", components:[{name:"payer",type:"address"},{name:"merchant",type:"address"},{name:"amount",type:"uint256"},{name:"expiry",type:"uint256"},{name:"nonce",type:"uint256"},{name:"signature",type:"bytes"}]}], outputs:[] }] as const;
+      const allowance = await pc.readContract({ address:USDC2, abi:USDC_ABI, functionName:"allowance", args:[address as `0x${string}`, SCHED] }) as bigint;
+      if (allowance < amount) {
+        const ah = await wc.writeContract({ address:USDC2, abi:USDC_ABI, functionName:"approve", args:[SCHED, parseUnits("100",6)] });
+        await pc.waitForTransactionReceipt({ hash:ah });
+      }
+      const hash = await wc.writeContract({ address:SCHED, abi:X402_ABI, functionName:"executeX402Payment", args:[{ payer:address as `0x${string}`, merchant:MERCHANT, amount, expiry, nonce, signature:signature as `0x${string}` }] });
       await pc.waitForTransactionReceipt({ hash });
-      setTxHash(hash); setState("done");
-      setTimeout(()=>{ setState("idle"); setTo(""); setAmt(""); setTxHash(""); }, 8000);
-    } catch(e:any) { setErrMsg(e.message||"Failed"); setState("error"); setTimeout(()=>setState("idle"),5000); }
+      setTxHash(hash);
+
+      // Step4: POST /api/x402 → コンテンツ取得
+      const r2 = await fetch("/api/x402", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ payer:address, amount:info.x402.amount, expiry:expiry.toString(), nonce:nonce.toString(), signature, content }) });
+      const result = await r2.json();
+      if (!result.success) throw new Error(result.error);
+      setData(result.data);
+      setState("done");
+    } catch(e:any) { setErrMsg(e.message||"Failed"); setState("error"); setTimeout(()=>setState("idle"),6000); }
   };
-  if (state==="done") return (
-    <div className="success-pop" style={{textAlign:"center",padding:"20px 0"}}>
-      <div style={{fontSize:24,color:"#00e5a0",marginBottom:8}}>&#10003;</div>
-      <div style={{fontSize:12,color:"#00e5a0",letterSpacing:".1em"}}>Payment Sent</div>
-      <div style={{marginTop:10,fontSize:10}}><a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>View on ArcScan &#x2192;</a></div>
+
+  if (state==="done"&&data) return (
+    <div className="success-pop">
+      <div style={{fontSize:10,color:"#00e5a0",marginBottom:12,letterSpacing:".1em"}}>✓ x402 PAYMENT VERIFIED · CONTENT UNLOCKED</div>
+      {"employees" in data ? (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+          {data.employees.map((e:any,i:number)=>(
+            <div key={i} style={{background:"#070e18",border:"1px solid #0e1b28",borderRadius:4,padding:"10px 12px"}}>
+              <div style={{fontSize:11,color:"#8ab4cc"}}>{e.label}</div>
+              <div style={{fontSize:14,color:"#3dd6f5",fontWeight:700,marginTop:4}}>{e.amount} USDC</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+          {[["Transactions",data.totalTransactions],["Volume",data.totalVolume+" USDC"],["Avg",data.avgPayment+" USDC"]].map(([k,v],i)=>(
+            <div key={i} style={{background:"#070e18",border:"1px solid #0e1b28",borderRadius:4,padding:"10px 12px"}}>
+              <div style={{fontSize:10,color:"#2e5070"}}>{k}</div>
+              <div style={{fontSize:13,color:"#3dd6f5",fontWeight:700,marginTop:4}}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{fontSize:10,color:"#3dd6f5",marginTop:8}}><a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>View TX on ArcScan →</a></div>
     </div>
   );
+
   return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <div><div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Recipient Address</div><input className="input-field" placeholder="0x..." value={to} onChange={e=>setTo(e.target.value)}/></div>
-      <div><div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Amount (USDC)</div><input className="input-field" placeholder="0.00" type="number" value={amt} onChange={e=>setAmt(e.target.value)}/></div>
+      <div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Select Content</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
+        {[["payroll-report","Payroll Report"],["analytics","Analytics"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setContent(v)} style={{background:content===v?"#0d1f35":"#0c1520",border:`1px solid ${content===v?"#3dd6f5":"#1a2a3a"}`,color:content===v?"#3dd6f5":"#4a6070",fontFamily:"DM Mono,monospace",fontSize:11,padding:"10px",borderRadius:4,cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
       {state==="error"&&<div style={{fontSize:11,color:"#ff4d6d",wordBreak:"break-all"}}>{errMsg}</div>}
-      <button className="submit-btn" onClick={handleSend} disabled={state!=="idle"||!to||!amt}>
-        {state==="paying"?<><span className="spinning">&#9675;</span> Sending&#x2026;</>:"Send USDC (x402) &#x2192;"}
+      <button className="submit-btn" onClick={handleFlow} disabled={state!=="idle"}>
+        {state==="step1"?<><span className="spinning">◌</span> Requesting…</>
+        :state==="signing"?<><span className="spinning">◌</span> Signing…</>
+        :state==="paying"?<><span className="spinning">◌</span> Paying 1 USDC…</>
+        :"Pay 1 USDC · Access via x402 →"}
       </button>
     </div>
   );
