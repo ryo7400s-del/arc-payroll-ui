@@ -112,13 +112,13 @@ export default function ArcPayroll() {
       setAddress(addr);
       // switch to Arc Testnet
      try {
-        await (window.ethereum as any).request({
+        await (window as any).ethereum.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: "0x4CE8B2" }],
         });
       } catch {
         try {
-          await (window.ethereum as any).request({
+          await (window as any).ethereum.request({
             method: "wallet_addEthereumChain",
             params: [{
               chainId: "0x4CE8B2",
@@ -128,7 +128,7 @@ export default function ArcPayroll() {
               blockExplorerUrls: ["https://testnet.arcscan.app"],
             }],
           });
-          await (window.ethereum as any).request({
+          await (window as any).ethereum.request({
             method: "wallet_switchEthereumChain",
             params: [{ chainId: "0x4CE8B2" }],
           });
