@@ -66,6 +66,47 @@ const publicClient = createPublicClient({
   chain: arcTestnet,
   transport: http(),
 });
+function X402Send({ address }: { address: string }) {
+  const [to, setTo] = useState("");
+  const [amt, setAmt] = useState("");
+  const [state, setState] = useState<"idle"|"paying"|"done"|"error">("idle");
+  const [txHash, setTxHash] = useState("");
+  const [errMsg, setErrMsg] = useState("");
+  const handleSend = async () => {
+    if (!to||!amt||!(window as any).ethereum) return;
+    setState("paying");
+    try {
+      const { createWalletClient, createPublicClient, custom, http, parseUnits } = await import("viem");
+      const arc = { id:5042002, name:"Arc Testnet", nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18}, rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}, blockExplorers:{default:{name:"ArcScan",url:"https://testnet.arcscan.app"}} } as const;
+      const wc = createWalletClient({ account:address as `0x${string}`, chain:arc, transport:custom((window as any).ethereum) });
+      const pc = createPublicClient({ chain:arc, transport:http() });
+      const USDC2="0x3600000000000000000000000000000000000000" as `0x${string}`;
+      const ABI2=[{ type:"function", name:"transfer", inputs:[{name:"to",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}] }] as const;
+      const hash = await wc.writeContract({ address:USDC2, abi:ABI2, functionName:"transfer", args:[to as `0x${string}`, parseUnits(amt,6)] });
+      await pc.waitForTransactionReceipt({ hash });
+      setTxHash(hash); setState("done");
+      setTimeout(()=>{ setState("idle"); setTo(""); setAmt(""); setTxHash(""); }, 8000);
+    } catch(e:any) { setErrMsg(e.message||"Failed"); setState("error"); setTimeout(()=>setState("idle"),5000); }
+  };
+  if (state==="done") return (
+    <div className="success-pop" style={{textAlign:"center",padding:"20px 0"}}>
+      <div style={{fontSize:24,color:"#00e5a0",marginBottom:8}}>&#10003;</div>
+      <div style={{fontSize:12,color:"#00e5a0",letterSpacing:".1em"}}>Payment Sent</div>
+      <div style={{marginTop:10,fontSize:10}}><a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>View on ArcScan &#x2192;</a></div>
+    </div>
+  );
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div><div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Recipient Address</div><input className="input-field" placeholder="0x..." value={to} onChange={e=>setTo(e.target.value)}/></div>
+      <div><div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Amount (USDC)</div><input className="input-field" placeholder="0.00" type="number" value={amt} onChange={e=>setAmt(e.target.value)}/></div>
+      {state==="error"&&<div style={{fontSize:11,color:"#ff4d6d",wordBreak:"break-all"}}>{errMsg}</div>}
+      <button className="submit-btn" onClick={handleSend} disabled={state!=="idle"||!to||!amt}>
+        {state==="paying"?<><span className="spinning">&#9675;</span> Sending&#x2026;</>:"Send USDC (x402) &#x2192;"}
+      </button>
+    </div>
+  );
+}
+
 function X402Report({ address }: { address: string }) {
   const [state, setState] = useState<"idle"|"paying"|"loading"|"done"|"error">("idle");
   const [report, setReport] = useState<any>(null);
