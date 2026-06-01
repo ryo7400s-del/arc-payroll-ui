@@ -1,4 +1,3 @@
-cat > app/api/x402/route.ts << 'EOF'
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http, keccak256, encodeAbiParameters, parseAbiParameters } from "viem";
 const arcTestnet = {
