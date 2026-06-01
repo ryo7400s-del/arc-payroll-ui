@@ -366,7 +366,7 @@ function ArcPayrollInner() {
                     <span style={{color:"#2e5070"}}>Flow: </span>
                     approve USDC → createSchedule on-chain → executeSchedule when due · no bank · no clearinghouse
                   </div>
-                  <button className="submit-btn" onClick={()=>alert("clicked!")} disabled={false}>
+                  <button className="submit-btn" onClick={()=>alert("conn:"+isConnected+" wc:"+!!walletClient+" pub:"+!!publicClient+" addr:"+address)} disabled={false}>
                     {txState==="approving" ? <><span className="spinning">◌</span> Approving USDC…</>
                     :txState==="creating"  ? <><span className="spinning">◌</span> Creating Schedule…</>
                     :"Create Schedule →"}
