@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from "react";
-import { WagmiProvider, createConfig, http, useAccount, usePublicClient, useConnect, useDisconnect, useConnectorClient } from "wagmi";
+import { WagmiProvider, createConfig, http, useAccount, usePublicClient, useConnect, useDisconnect } from "wagmi";
 import { injected, walletConnect } from "@wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { parseUnits } from "viem";
