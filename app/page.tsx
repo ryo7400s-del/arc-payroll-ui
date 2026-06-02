@@ -158,7 +158,6 @@ function X402Send({ address }: { address: string }) {
         <div><div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Merchant Address (optional)</div><input className="input-field" placeholder="0x... (default: self)" value={x402Merchant} onChange={e=>setX402Merchant(e.target.value)}/></div>
         <div><div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Amount (USDC)</div><input className="input-field" placeholder="1.00" type="number" value={x402Amount} onChange={e=>setX402Amount(e.target.value)}/></div>
       </div>
-        ))}
       </div>
       {state==="error"&&<div style={{fontSize:11,color:"#ff4d6d",wordBreak:"break-all"}}>{errMsg}</div>}
       <button className="submit-btn" onClick={handleFlow} disabled={state!=="idle"}>
