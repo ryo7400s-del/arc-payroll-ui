@@ -85,6 +85,7 @@ function X402Send({ address }: { address: string }) {
       const amountUsdc = String(Math.round(parseFloat(x402Amount||"1") * 1_000_000));
       console.log("DEBUG: merchantAddr=", merchantAddr, "amountUsdc=", amountUsdc);
       const r1 = await fetch(`/api/x402?amount=${amountUsdc}&merchant=${merchantAddr}`);
+      const info = await r1.json();
       setX402Info(info.x402);
 
       // Step2: 署名
