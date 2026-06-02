@@ -167,7 +167,7 @@ function X402Send({ address }: { address: string }) {
         {state==="step1"?<><span className="spinning">◌</span> Requesting…</>
         :state==="signing"?<><span className="spinning">◌</span> Signing…</>
         :state==="paying"?<><span className="spinning">◌</span> Paying 1 USDC…</>
-        :"Pay 1 USDC · Access via x402 →"}
+  :`Pay ${x402Amount||"1"} USDC · Access via x402 →`}
       </button>
     </div>
   );
