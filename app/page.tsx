@@ -81,8 +81,10 @@ function X402Send({ address }: { address: string }) {
     setState("step1");
     try {
       // Step1: GET /api/x402 → 402レスポンス受け取る
-      const r1 = await fetch("/api/x402");
-      const info = await r1.json();
+      const merchantAddr = x402Merchant || "0x2032C2aC5cdB02b2e0D46e015Af991C257edd388";
+      const amountUsdc = String(Math.round(parseFloat(x402Amount||"1") * 1_000_000));
+      console.log("DEBUG: merchantAddr=", merchantAddr, "amountUsdc=", amountUsdc);
+      const r1 = await fetch(`/api/x402?amount=${amountUsdc}&merchant=${merchantAddr}`);
       setX402Info(info.x402);
 
       // Step2: 署名
