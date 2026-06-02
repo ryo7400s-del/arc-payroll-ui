@@ -153,6 +153,7 @@ function X402Send({ address }: { address: string }) {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
         {[["payroll-report","Payroll Report"],["analytics","Analytics"]].map(([v,l])=>(
           <button key={v} onClick={()=>setContent(v)} style={{background:content===v?"#0d1f35":"#0c1520",border:`1px solid ${content===v?"#3dd6f5":"#1a2a3a"}`,color:content===v?"#3dd6f5":"#4a6070",fontFamily:"DM Mono,monospace",fontSize:11,padding:"10px",borderRadius:4,cursor:"pointer"}}>{l}</button>
+        ))}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
         <div><div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Merchant Address (optional)</div><input className="input-field" placeholder="0x... (default: self)" value={x402Merchant} onChange={e=>setX402Merchant(e.target.value)}/></div>
         <div><div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Amount (USDC)</div><input className="input-field" placeholder="1.00" type="number" value={x402Amount} onChange={e=>setX402Amount(e.target.value)}/></div>
