@@ -11,7 +11,7 @@ const arcTestnet = {
   blockExplorers: { default: { name: "ArcScan", url: "https://testnet.arcscan.app" } },
 } as const;
 
-const SCHEDULER = "0xdf56aaeb1046a0ae5fde00a3626bf4caf7e7db52" as `0x${string}`;
+const DEFAULT_SCHEDULER = "0xdf56aaeb1046a0ae5fde00a3626bf4caf7e7db52" as `0x${string}`;
 const USDC      = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 
 const SCHEDULER_ABI = [
@@ -234,6 +234,7 @@ function StatusPill({ active }: { active: boolean }) {
 
 export default function ArcPayroll() {
   const [address,   setAddress]   = useState<`0x${string}`|null>(null);
+  const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
   const [balance,   setBalance]   = useState<string|null>(null);
   const [connecting,setConnecting]= useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -269,6 +270,8 @@ export default function ArcPayroll() {
       const accounts = await ((window as any).ethereum).request({ method:"eth_requestAccounts" });
       const addr = accounts[0] as `0x${string}`;
       setAddress(addr);
+      const saved = localStorage.getItem(`payroll_contract_${addr}`);
+      if (saved) setSCHEDULER(saved as `0x${string}`);
       // switch to Arc Testnet
      try {
         await (window as any).ethereum.request({

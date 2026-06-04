@@ -20,6 +20,7 @@ export default function DeployContract({ onDeployed }: { onDeployed: (addr: stri
       const hash = await wc.deployContract({ abi:[], bytecode:BYTECODE });
       const receipt = await pc.waitForTransactionReceipt({ hash });
       const contractAddr = receipt.contractAddress!;
+      localStorage.setItem(`payroll_contract_${addr}`, contractAddr);
       setAddress(contractAddr);
       setState("done");
       onDeployed(contractAddr);
