@@ -569,7 +569,12 @@ export default function ArcPayroll() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => console.log("Deployed:", addr)} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); }} />
+            <div className="card" style={{marginBottom:16}}>
+              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:8}}>Active Contract</div>
+              <div style={{fontSize:10,color:"#3dd6f5",wordBreak:"break-all",marginBottom:8}}>{SCHEDULER}</div>
+              <input className="input-field" placeholder="0x... paste contract address to switch" onChange={e=>{ if(e.target.value.startsWith("0x")){ setSCHEDULER(e.target.value as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, e.target.value); }}}/>
+            </div>
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>
                 On-Chain Schedules
