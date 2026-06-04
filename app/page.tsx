@@ -1,3 +1,4 @@
+import DeployContract from "./components/DeployContract";
 "use client"
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
@@ -565,6 +566,7 @@ export default function ArcPayroll() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
+            <DeployContract onDeployed={(addr) => console.log("Deployed:", addr)} />
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>
                 On-Chain Schedules
