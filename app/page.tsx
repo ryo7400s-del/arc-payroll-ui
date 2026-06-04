@@ -1,6 +1,5 @@
 "use client";
 import DeployContract from "./components/DeployContract";
-import DeployContract from "./components/DeployContract";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
 
