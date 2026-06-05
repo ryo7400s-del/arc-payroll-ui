@@ -1,6 +1,7 @@
 "use client";
 import WhitelistManager from "./components/WhitelistManager";
 import WhitelistManager from "./components/WhitelistManager";
+import WhitelistManager from "./components/WhitelistManager";
 import DeployContract from "./components/DeployContract";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
