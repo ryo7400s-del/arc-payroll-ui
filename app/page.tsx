@@ -1,4 +1,5 @@
 "use client";
+import WhitelistManager from "./components/WhitelistManager";
 import DeployContract from "./components/DeployContract";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
@@ -34,6 +35,8 @@ const SCHEDULER_ABI = [
     ]}] },
   { type:"function", name:"addToWhitelist", inputs:[{name:"addr",type:"address"}], outputs:[] },
   { type:"function", name:"getWhitelist", inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"address[]"}] },
+  { type:"function", name:"removeFromWhitelist", inputs:[{name:"addr",type:"address"}], outputs:[] },
+  { type:"function", name:"toggleSchedule", inputs:[{name:"index",type:"uint256"}], outputs:[] },
   { type:"function", name:"weeklyRemaining",
     inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"uint256"}] },
 ] as const;
@@ -638,6 +641,10 @@ export default function ArcPayroll() {
                     alert("✅ Whitelisted! " + addr);
                   }catch(e:any){alert("Failed: "+e.message);}
                 }}>Add to Whitelist 2192</button>
+              </div>
+              <div className="card" style={{marginTop:16}}>
+                <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:12}}>Whitelist Members</div>
+                <WhitelistManager address={address} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} />
               </div>
             </div>
 
