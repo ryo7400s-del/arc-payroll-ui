@@ -644,7 +644,7 @@ export default function ArcPayroll() {
               </div>
               <div className="card" style={{marginTop:16}}>
                 <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:12}}>Whitelist Members</div>
-                {address <WhitelistManager address={address}<WhitelistManager address={address} <WhitelistManager address={address} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} />}
+                {address {address <WhitelistManager address={address}<WhitelistManager address={address} <WhitelistManager address={address}<WhitelistManager address={address} <WhitelistManager address={address} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} />}}
               </div>
             </div>
 
