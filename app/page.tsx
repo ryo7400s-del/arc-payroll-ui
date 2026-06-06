@@ -604,6 +604,7 @@ export default function ArcPayroll() {
                         <button className="exec-btn" onClick={()=>handleExecute(i)} disabled={txState!=="idle"}>
                           {txState==="executing"?<span className="spinning">◌</span>:`Send·${next}`}
                         </button>
+                        <button className="exec-btn" style={{background:"#1a0a0a",borderColor:row.active?"#ff4d6d":"#00e5a0",color:row.active?"#ff4d6d":"#00e5a0"}} onClick={async()=>{ const wc=createWalletClient({account:address!,chain:arcTestnet,transport:custom((window as any).ethereum)}); try{ const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"toggleSchedule",args:[BigInt(i)]}); await publicClient.waitForTransactionReceipt({hash:h}); fetchSchedules(); }catch(e:any){alert(e.message);} }} disabled={txState!=="idle"}>{row.active?"Pause":"Resume"}</button>
                       </div>
                     );
                   })}
