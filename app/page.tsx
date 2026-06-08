@@ -1,6 +1,7 @@
 "use client";
 import WhitelistManager from "./components/WhitelistManager";
 import TxHistory from "./components/TxHistory";
+import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
@@ -626,6 +627,7 @@ export default function ArcPayroll() {
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             </div>
 
+            <CsvImport address={address!} scheduler={SCHEDULER} abi={SCHEDULER_ABI} />
             <div className="card" style={{marginTop:16}}>
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Whitelist Address</div>
               <div style={{display:"flex",flexDirection:"column",gap:14}}>
