@@ -122,7 +122,7 @@ export default function TxHistory({ address, scheduler, publicClient }: {
               </span>
               <span style={{fontSize:11,color:"#8ab4cc",fontFamily:"DM Mono,monospace"}}>{short(tx.from)}</span>
               <span style={{fontSize:11,color:"#8ab4cc",fontFamily:"DM Mono,monospace"}}>{short(tx.to)}</span>
-              <span style={{fontSize:11,color:"#00e5a0",fontVariantNumeric:"tabular-nums"}}>{tx.amount}</span>
+              <span style={{fontSize:11,color:"#00e5a0",fontVariantNumeric:"tabular-nums"}}>{tx.from.toLowerCase() === address.toLowerCase() ? tx.amount : "****"}</span>
               <a href={`https://testnet.arcscan.app/tx/${tx.txHash}`} target="_blank" rel="noreferrer"
                 style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>↗ View</a>
             </div>
