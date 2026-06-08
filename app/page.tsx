@@ -1,5 +1,6 @@
 "use client";
 import WhitelistManager from "./components/WhitelistManager";
+import TxHistory from "./components/TxHistory";
 import DeployContract from "./components/DeployContract";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
@@ -477,7 +478,7 @@ export default function ArcPayroll() {
         </div>
 
         <div style={{display:"flex",gap:4,marginBottom:28,background:"#090f18",padding:4,borderRadius:5,width:"fit-content"}}>
-          {[["dashboard","Dashboard"],["schedule","Schedule"]].map(([k,l])=>(
+          {[["dashboard","Dashboard"],["schedule","Schedule"],["history","History"]].map(([k,l])=>(
             <button key={k} className={`nav-btn${activeTab===k?" active":""}`} onClick={()=>setActiveTab(k)}>{l}</button>
           ))}
         </div>
@@ -652,6 +653,11 @@ export default function ArcPayroll() {
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <a href={`https://testnet.arcscan.app/address/${SCHEDULER}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>{SCHEDULER.slice(0,10)}…</a>
             </div>
+          </div>
+        )}
+        {activeTab==="history" && address && (
+          <div className="animate-in">
+            <TxHistory address={address} scheduler={SCHEDULER} publicClient={publicClient} />
           </div>
         )}
 
