@@ -349,12 +349,12 @@ export default function ArcPayroll() {
         });
         await publicClient.waitForTransactionReceipt({ hash:ah });
       }
-      setTxState("creating");
+      const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
       const hash = await wc.writeContract({
         address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"createSchedule",
-        const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
         args:[form.to as `0x${string}`, amount, BigInt(form.interval), form.label||"Employee", fe],
-      });
+
+
       await publicClient.waitForTransactionReceipt({ hash });
       setTxHash(hash);
       setTxState("success");
