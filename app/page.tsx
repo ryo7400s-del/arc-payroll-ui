@@ -354,6 +354,7 @@ export default function ArcPayroll() {
         address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"createSchedule",
         args:[form.to as `0x${string}`, amount, BigInt(form.interval), form.label||"Employee", fe],
 
+      });
 
       await publicClient.waitForTransactionReceipt({ hash });
       setTxHash(hash);
