@@ -14,7 +14,7 @@ const arcTestnet = {
   blockExplorers: { default: { name: "ArcScan", url: "https://testnet.arcscan.app" } },
 } as const;
 
-const DEFAULT_SCHEDULER = "0xdf56aaeb1046a0ae5fde00a3626bf4caf7e7db52" as `0x${string}`;
+const DEFAULT_SCHEDULER = "0xac86935294ca223ce98404c6aa940c87030e255b" as `0x${string}`;
 const USDC      = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 
 const SCHEDULER_ABI = [
@@ -110,7 +110,7 @@ function X402Send({ address }: { address: string }) {
 
       // Step3: USDC approve + executeX402Payment
       setState("paying");
-      const SCHED = "0xdf56aaeb1046a0ae5fde00a3626bf4caf7e7db52" as `0x${string}`;
+      const SCHED = "0xac86935294ca223ce98404c6aa940c87030e255b" as `0x${string}`;
       const USDC_ABI = [{ type:"function", name:"approve", inputs:[{name:"spender",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}] },{ type:"function", name:"allowance", inputs:[{name:"owner",type:"address"},{name:"spender",type:"address"}], outputs:[{type:"uint256"}] }] as const;
       const X402_ABI = [{ type:"function", name:"executeX402Payment", inputs:[{ name:"req", type:"tuple", components:[{name:"payer",type:"address"},{name:"merchant",type:"address"},{name:"amount",type:"uint256"},{name:"expiry",type:"uint256"},{name:"nonce",type:"uint256"},{name:"signature",type:"bytes"}]}], outputs:[] }] as const;
       const allowance = await pc.readContract({ address:USDC2, abi:USDC_ABI, functionName:"allowance", args:[address as `0x${string}`, SCHED] }) as bigint;
@@ -249,7 +249,7 @@ export default function ArcPayroll() {
   const [txError,   setTxError]   = useState("");
   const [schedules, setSchedules] = useState<any[]>([]);
   const [weeklyLeft,setWeeklyLeft]= useState<string|null>(null);
-  const [form, setForm] = useState({ to:"", amount:"", interval:2592000, label:"" });
+  const [form, setForm] = useState({ to:"", amount:"", interval:2592000, label:"", firstExecution:"" });
 
   useEffect(() => {
     const t = setInterval(()=>setScanLine(s=>(s+1)%100), 60);
@@ -352,13 +352,14 @@ export default function ArcPayroll() {
       setTxState("creating");
       const hash = await wc.writeContract({
         address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"createSchedule",
-        args:[form.to as `0x${string}`, amount, BigInt(form.interval), form.label||"Employee"],
+        const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
+        args:[form.to as `0x${string}`, amount, BigInt(form.interval), form.label||"Employee", fe],
       });
       await publicClient.waitForTransactionReceipt({ hash });
       setTxHash(hash);
       setTxState("success");
       await fetchSchedules();
-      setTimeout(()=>{ setTxState("idle"); setTxHash(""); setForm({to:"",amount:"",interval:2592000,label:""}); }, 6000);
+      setTimeout(()=>{ setTxState("idle"); setTxHash(""); setForm({to:"",amount:"",interval:2592000,label:"",firstExecution:""}); }, 6000);
     } catch(e:any) {
       setTxError(e.message||"Failed");
       setTxState("error");
@@ -545,6 +546,10 @@ export default function ArcPayroll() {
                       <select className="select-field" value={form.interval} onChange={e=>setForm(f=>({...f,interval:Number(e.target.value)}))}>
                         {INTERVALS.map(v=><option key={v.seconds} value={v.seconds}>{v.label}</option>)}
                       </select>
+                  <div style={{marginTop:12}}>
+                    <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>First Payment Date (optional)</div>
+                    <input type="date" className="input-field" value={form.firstExecution} onChange={e=>setForm(f=>({...f,firstExecution:e.target.value}))} min={new Date().toISOString().split("T")[0]} style={{colorScheme:"dark"}}/>
+                  </div>
                     </div>
                   </div>
                   <div style={{fontSize:10,color:"#1e3a50",borderTop:"1px solid #0e1b28",paddingTop:12,lineHeight:1.7}}>
