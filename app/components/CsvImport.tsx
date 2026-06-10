@@ -42,7 +42,7 @@ export default function CsvImport({ address, scheduler, abi }: {
           to: to || "",
           amount: amount || "0",
           interval: intervalMap[intervalStr?.toLowerCase()] || 2592000,
-          status: "pending",
+          status: "pending" as const,
         };
       }).filter(r => r.to.startsWith("0x"));
       setRows(parsed);
