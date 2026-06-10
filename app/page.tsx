@@ -147,7 +147,7 @@ function X402Send({ address }: { address: string }) {
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
           {[["Transactions",data.totalTransactions],["Volume",data.totalVolume+" USDC"],["Avg",data.avgPayment+" USDC"]].map(([k,v],i)=>(
             <div key={i} style={{background:"#070e18",border:"1px solid #0e1b28",borderRadius:4,padding:"10px 12px"}}>
-              <div style={{fontSize:10,color:"#2e5070"}}>{k}</div>
+              <div style={{fontSize:10,color:"#8ab4cc"}}>{k}</div>
               <div style={{fontSize:13,color:"#3dd6f5",fontWeight:700,marginTop:4}}>{v}</div>
             </div>
           ))}
@@ -158,14 +158,14 @@ function X402Send({ address }: { address: string }) {
   );
   return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Select Content</div>
+      <div style={{fontSize:10,color:"#8ab4cc",marginBottom:4}}>Select Content</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
         {[["payroll-report","Payroll Report"],["analytics","Analytics"]].map(([v,l])=>(
           <button key={v} onClick={()=>setContent(v)} style={{background:content===v?"#0d1f35":"#0c1520",border:`1px solid ${content===v?"#3dd6f5":"#1a2a3a"}`,color:content===v?"#3dd6f5":"#4a6070",fontFamily:"DM Mono,monospace",fontSize:11,padding:"10px",borderRadius:4,cursor:"pointer"}}>{l}</button>
         ))}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-        <div><div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Merchant Address (optional)</div><input className="input-field" placeholder="0x... (default: self)" value={x402Merchant} onChange={e=>setX402Merchant(e.target.value)}/></div>
-        <div><div style={{fontSize:10,color:"#2e5070",marginBottom:4}}>Amount (USDC)</div><input className="input-field" placeholder="1.00" type="number" value={x402Amount} onChange={e=>setX402Amount(e.target.value)}/></div>
+        <div><div style={{fontSize:10,color:"#8ab4cc",marginBottom:4}}>Merchant Address (optional)</div><input className="input-field" placeholder="0x... (default: self)" value={x402Merchant} onChange={e=>setX402Merchant(e.target.value)}/></div>
+        <div><div style={{fontSize:10,color:"#8ab4cc",marginBottom:4}}>Amount (USDC)</div><input className="input-field" placeholder="1.00" type="number" value={x402Amount} onChange={e=>setX402Amount(e.target.value)}/></div>
       </div>
       </div>
       {state==="error"&&<div style={{fontSize:11,color:"#ff4d6d",wordBreak:"break-all"}}>{errMsg}</div>}
@@ -215,7 +215,7 @@ function X402Report({ address }: { address: string }) {
           </div>
         ))}
       </div>
-      <div style={{fontSize:10,color:"#2e5070"}}>Total: <span style={{color:"#ffd166"}}>{report.totalDisbursed} USDC</span> · {report.month}</div>
+      <div style={{fontSize:10,color:"#8ab4cc"}}>Total: <span style={{color:"#ffd166"}}>{report.totalDisbursed} USDC</span> · {report.month}</div>
     </div>
   );
   return (
@@ -449,7 +449,7 @@ export default function ArcPayroll() {
               <span style={{fontFamily:"'Syne',sans-serif",fontSize:22,fontWeight:800,letterSpacing:".04em",color:"#fff"}}>ARC</span>
               <span style={{fontSize:11,color:"#3dd6f5",letterSpacing:".18em",textTransform:"uppercase",fontWeight:500}}>PAYROLL</span>
             </div>
-            <div style={{marginTop:5,fontSize:11,color:"#2e5070",letterSpacing:".06em"}}>Enterprise-grade · tamper-proof · on-chain payroll</div>
+            <div style={{marginTop:5,fontSize:11,color:"#8ab4cc",letterSpacing:".06em"}}>Enterprise-grade · tamper-proof · on-chain payroll</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:16}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -464,7 +464,7 @@ export default function ArcPayroll() {
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontSize:11,color:"#3dd6f5",fontWeight:500}}>{shortAddr(address)}</div>
-                  <div style={{fontSize:10,color:"#2e5070"}}>{balance??"-"} USDC</div>
+                  <div style={{fontSize:10,color:"#8ab4cc"}}>{balance??"-"} USDC</div>
                 </div>
                 <button className="disconnect-btn" onClick={disconnect}>✕</button>
               </div>
@@ -495,9 +495,9 @@ export default function ArcPayroll() {
                 {label:"Weekly Remaining",value:weeklyLeft??"-",unit:"USDC",accent:"#ffd166"},
               ].map((s,i)=>(
                 <div key={i} className="stat-card">
-                  <div style={{fontSize:10,color:"#2e5070",letterSpacing:".1em",textTransform:"uppercase",marginBottom:10}}>{s.label}</div>
+                  <div style={{fontSize:10,color:"#8ab4cc",letterSpacing:".1em",textTransform:"uppercase",marginBottom:10}}>{s.label}</div>
                   <div style={{fontSize:22,fontFamily:"'Syne',sans-serif",fontWeight:700,color:s.accent,fontVariantNumeric:"tabular-nums"}}>{s.value}</div>
-                  <div style={{fontSize:10,color:"#2e5070",marginTop:3}}>{s.unit}</div>
+                  <div style={{fontSize:10,color:"#8ab4cc",marginTop:3}}>{s.unit}</div>
                   <div style={{position:"absolute",bottom:0,left:0,right:0,height:2,background:`linear-gradient(90deg,${s.accent}55,transparent)`}}/>
                 </div>
               ))}
@@ -507,7 +507,7 @@ export default function ArcPayroll() {
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Create Payment Schedule</div>
               {!address && (
                 <div style={{padding:"28px 0",textAlign:"center"}}>
-                  <div style={{color:"#2e5070",fontSize:12,marginBottom:14}}>Open in MetaMask browser and connect wallet</div>
+                  <div style={{color:"#8ab4cc",fontSize:12,marginBottom:14}}>Open in MetaMask browser and connect wallet</div>
                   <button className="connect-btn" onClick={connect} disabled={connecting}>{connecting?"Connecting…":"Connect Wallet"}</button>
                 </div>
               )}
@@ -515,46 +515,46 @@ export default function ArcPayroll() {
                 <div className="success-pop" style={{padding:"32px 0",textAlign:"center"}}>
                   <div style={{fontSize:28,marginBottom:10,color:"#00e5a0"}}>✓</div>
                   <div style={{color:"#00e5a0",fontSize:12,letterSpacing:".1em"}}>Success</div>
-                  <div style={{color:"#2e5070",fontSize:11,marginTop:6}}>Signed · broadcast · on-chain confirmed</div>
+                  <div style={{color:"#8ab4cc",fontSize:11,marginTop:6}}>Signed · broadcast · on-chain confirmed</div>
                   {txHash && <div style={{marginTop:10,fontSize:10}}><a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>View on ArcScan →</a></div>}
                 </div>
               )}
               {address && txState==="error" && (
                 <div style={{padding:"20px 0",textAlign:"center"}}>
                   <div style={{color:"#ff4d6d",fontSize:12,marginBottom:6}}>Failed</div>
-                  <div style={{color:"#2e5070",fontSize:11,maxWidth:400,margin:"0 auto",wordBreak:"break-all"}}>{txError}</div>
+                  <div style={{color:"#8ab4cc",fontSize:11,maxWidth:400,margin:"0 auto",wordBreak:"break-all"}}>{txError}</div>
                 </div>
               )}
               {address && !["success","error"].includes(txState) && (
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                     <div>
-                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Recipient Address</div>
+                      <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>Recipient Address</div>
                       <input className="input-field" placeholder="0x..." value={form.to} onChange={e=>setForm(f=>({...f,to:e.target.value}))}/>
                     </div>
                     <div>
-                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Label</div>
+                      <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>Label</div>
                       <input className="input-field" placeholder="e.g. Alice M." value={form.label} onChange={e=>setForm(f=>({...f,label:e.target.value}))}/>
                     </div>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                     <div>
-                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Amount (USDC)</div>
+                      <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>Amount (USDC)</div>
                       <input className="input-field" placeholder="0.00" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
                     </div>
                     <div>
-                      <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Interval</div>
+                      <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>Interval</div>
                       <select className="select-field" value={form.interval} onChange={e=>setForm(f=>({...f,interval:Number(e.target.value)}))}>
                         {INTERVALS.map(v=><option key={v.seconds} value={v.seconds}>{v.label}</option>)}
                       </select>
                   <div style={{marginTop:12}}>
-                    <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>First Payment Date (optional)</div>
+                    <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>First Payment Date (optional)</div>
                     <input type="date" className="input-field" value={form.firstExecution} onChange={e=>setForm(f=>({...f,firstExecution:e.target.value}))} min={new Date().toISOString().split("T")[0]} style={{colorScheme:"dark"}}/>
                   </div>
                     </div>
                   </div>
                   <div style={{fontSize:10,color:"#1e3a50",borderTop:"1px solid #0e1b28",paddingTop:12,lineHeight:1.7}}>
-                    <span style={{color:"#2e5070"}}>Flow: </span>
+                    <span style={{color:"#8ab4cc"}}>Flow: </span>
                     approve USDC → createSchedule on-chain → executeSchedule when due
                   </div>
                   <button className="submit-btn" onClick={handleCreate} disabled={txState!=="idle"||!form.to||!form.amount}>
@@ -591,11 +591,11 @@ export default function ArcPayroll() {
                 On-Chain Schedules
                 <button onClick={fetchSchedules} style={{marginLeft:12,background:"none",border:"1px solid #1a2a3a",color:"#3dd6f5",fontSize:9,padding:"2px 8px",borderRadius:3,cursor:"pointer"}}>↻ Refresh</button>
               </div>
-              {!address && <div style={{color:"#2e5070",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
-              {address && schedules.length===0 && <div style={{color:"#2e5070",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
+              {!address && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
+              {address && schedules.length===0 && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
               {address && schedules.length>0 && (
                 <>
-                  <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 90px",gap:10,padding:"6px 14px",fontSize:10,color:"#2e5070",marginBottom:4}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 90px",gap:10,padding:"6px 14px",fontSize:10,color:"#8ab4cc",marginBottom:4}}>
                     <span>Recipient</span><span>Label</span><span>Amount</span><span>Interval</span><span>Status</span><span>Action</span>
                   </div>
                   {schedules.map((row,i)=>{
@@ -638,7 +638,7 @@ export default function ArcPayroll() {
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Whitelist Address</div>
               <div style={{display:"flex",flexDirection:"column",gap:14}}>
                 <div>
-                  <div style={{fontSize:10,color:"#2e5070",marginBottom:6}}>Wallet Address to Whitelist</div>
+                  <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>Wallet Address to Whitelist</div>
                   <input className="input-field" placeholder="0x..." id="wl-input"/>
                 </div>
                 <button className="submit-btn" onClick={async()=>{
