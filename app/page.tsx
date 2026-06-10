@@ -19,7 +19,7 @@ const USDC      = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 
 const SCHEDULER_ABI = [
   { type:"function", name:"createSchedule",
-    inputs:[{name:"recipient",type:"address"},{name:"amount",type:"uint256"},{name:"interval",type:"uint256"},{name:"label",type:"string"}],
+    inputs:[{name:"recipient",type:"address"},{name:"amount",type:"uint256"},{name:"interval",type:"uint256"},{name:"label",type:"string"},{name:"firstExecution",type:"uint256"}],
     outputs:[{name:"",type:"uint96"}] },
   { type:"function", name:"executeSchedule",
     inputs:[{name:"owner",type:"address"},{name:"index",type:"uint256"}],
