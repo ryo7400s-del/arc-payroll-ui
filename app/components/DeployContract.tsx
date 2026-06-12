@@ -36,7 +36,7 @@ export default function DeployContract({ onDeployed }: { onDeployed?: (addr: str
       // 2. Registryに登録
       setStatus("registering");
       const rh = await wc.writeContract({
-        address: REGISTRY, abi: REGISTRY_ABI,
+        address: REGISTRY, abi: REGISTRY_ABI, account: addr as `0x${string}`,
         functionName: "register",
         args: [contractAddr, companyName || "My Company"],
       });
