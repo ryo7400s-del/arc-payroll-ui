@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { createWalletClient, createPublicClient, custom, http } from "viem";
-import { readFileSync } from "fs";
 
 const arcTestnet = {
   id:5042002, name:"Arc Testnet",
