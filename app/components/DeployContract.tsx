@@ -29,7 +29,7 @@ export default function DeployContract({ onDeployed }: { onDeployed?: (addr: str
       const pc = createPublicClient({ chain: arcTestnet, transport: http() });
 
       // 1. コントラクトデプロイ
-      const hash = await wc.deployContract({ abi: [], bytecode: BYTECODE });
+      const hash = await wc.deployContract({ abi: [], bytecode: BYTECODE, account: addr as `0x${string}` });
       const receipt = await pc.waitForTransactionReceipt({ hash });
       const contractAddr = receipt.contractAddress!;
 
