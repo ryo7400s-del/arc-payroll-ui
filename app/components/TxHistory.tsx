@@ -33,6 +33,7 @@ export default function TxHistory({ address, scheduler, publicClient }: {
   const fetchHistory = async () => {
     setLoading(true);
     try {
+      const latestBlock = await publicClient.getBlockNumber();
       const [scheduleLogs, x402Logs] = await Promise.all([
         publicClient.getLogs({
           address: scheduler,
@@ -46,7 +47,7 @@ export default function TxHistory({ address, scheduler, publicClient }: {
               { type:"bytes32", name:"txRef" },
             ]
           },
-          fromBlock: 0n,
+          fromBlock: latestBlock - 9000n > 0n ? latestBlock - 9000n : 0n,
           toBlock: "latest",
         }),
         publicClient.getLogs({
@@ -61,7 +62,7 @@ export default function TxHistory({ address, scheduler, publicClient }: {
               { type:"bytes32", name:"nonce" },
             ]
           },
-          fromBlock: 0n,
+          fromBlock: latestBlock - 9000n > 0n ? latestBlock - 9000n : 0n,
           toBlock: "latest",
         }),
       ]);
