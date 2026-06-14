@@ -585,6 +585,7 @@ export default function ArcPayroll() {
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:8}}>Active Contract</div>
               <div style={{fontSize:10,color:"#3dd6f5",wordBreak:"break-all",marginBottom:8}}>{SCHEDULER}</div>
               <input className="input-field" placeholder="0x... paste contract address to switch" onChange={e=>{ if(e.target.value.startsWith("0x")){ setSCHEDULER(e.target.value as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, e.target.value); }}}/>
+              <button className="submit-btn" style={{marginTop:8}} onClick={async()=>{ if(!address) return; const wc=createWalletClient({account:address,chain:arcTestnet,transport:custom((window as any).ethereum)}); const REGISTRY="0xc01c0113e353c6fc1be7d32a80e9688e1256b81f" as `0x${string}`; const REGISTRY_ABI=[{type:"function",name:"register",inputs:[{name:"scheduler",type:"address"},{name:"name",type:"string"}],outputs:[]}] as const; try{ const h=await wc.writeContract({address:REGISTRY,abi:REGISTRY_ABI,functionName:"register",args:[SCHEDULER,"Company"]}); await publicClient.waitForTransactionReceipt({hash:h}); alert("✅ Registered: "+SCHEDULER); }catch(e:any){alert("Failed: "+e.message);} }}>Register This Contract in Registry</button>
             </div>
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>
