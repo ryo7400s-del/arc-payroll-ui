@@ -35,12 +35,12 @@ const SCHEDULER_ABI = [
       {name:"amount",type:"uint256"},{name:"interval",type:"uint256"},
       {name:"nextExecution",type:"uint256"},{name:"active",type:"bool"},
       {name:"label",type:"string"},
-  { type:"function", name:"isWhitelisted", inputs:[{name:"owner",type:"address"},{name:"addr",type:"address"}], outputs:[{name:"",type:"bool"}] },
     ]}] },
   { type:"function", name:"addToWhitelist", inputs:[{name:"addr",type:"address"}], outputs:[] },
   { type:"function", name:"getWhitelist", inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"address[]"}] },
   { type:"function", name:"removeFromWhitelist", inputs:[{name:"addr",type:"address"}], outputs:[] },
   { type:"function", name:"toggleSchedule", inputs:[{name:"index",type:"uint256"}], outputs:[] },
+  { type:"function", name:"isWhitelisted", inputs:[{name:"owner",type:"address"},{name:"addr",type:"address"}], outputs:[{name:"",type:"bool"}] },
   { type:"function", name:"weeklyRemaining",
     inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"uint256"}] },
 ] as const;
@@ -265,7 +265,7 @@ export default function ArcPayroll() {
       chain: arcTestnet,
       transport: custom((window as any).ethereum),
     });
-  }, [address]);
+  }, [address, SCHEDULER]);
 
   const connect = useCallback(async () => {
     if (typeof window === "undefined" || !(window as any).ethereum) {
@@ -331,7 +331,7 @@ export default function ArcPayroll() {
       }) as bigint;
       setWeeklyLeft((Number(rem)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2}));
     } catch(e) { console.error(e); }
-  }, [address]);
+  }, [address, SCHEDULER]);
 
   useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
 
