@@ -3,7 +3,7 @@ import { useState } from "react";
 import { createPublicClient, http } from "viem";
 import { addEmployeesBatch, arcTestnet, type Employee, type StepStatus } from "../lib/employeeBatch";
 
-type Row = { label: string; to: string; amount: string; interval: number; status: "pending"|"whitelisting"|"scheduling"|"approving"|"success"|"error"; error?: string };
+type Row = { label: string; to: string; amount: string; interval: number; firstExecution?: bigint; status: "pending"|"whitelisting"|"scheduling"|"approving"|"success"|"error"; error?: string };
 
 export default function CsvImport({ address, scheduler, abi }: {
   address: string;
@@ -22,15 +22,24 @@ export default function CsvImport({ address, scheduler, abi }: {
       const text = ev.target?.result as string;
       const lines = text.trim().split("\n").slice(1);
       const parsed: Row[] = lines.map(line => {
-        const [label, to, amount, intervalStr] = line.split(",").map(s => s.trim());
+        const [label, to, amount, intervalStr, dateStr] = line.split(",").map(s => s.trim());
         const intervalMap: Record<string,number> = {
           "weekly":604800, "bi-weekly":1209600, "monthly":2592000, "quarterly":7776000
         };
+        let firstExecution: bigint | undefined;
+        if (dateStr) {
+          const d = dateStr.toLowerCase();
+          const t = new Date(); t.setUTCHours(0,0,0,0);
+          if (d === "today") firstExecution = BigInt(Math.floor(t.getTime()/1000));
+          else if (d === "tomorrow") { t.setUTCDate(t.getUTCDate()+1); firstExecution = BigInt(Math.floor(t.getTime()/1000)); }
+          else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) firstExecution = BigInt(Math.floor(new Date(dateStr).getTime()/1000));
+        }
         return {
           label: label || "Employee",
           to: to || "",
           amount: amount || "0",
           interval: intervalMap[intervalStr?.toLowerCase()] || 2592000,
+          firstExecution,
           status: "pending" as const,
         };
       }).filter(r => r.to.startsWith("0x"));
@@ -47,6 +56,7 @@ export default function CsvImport({ address, scheduler, abi }: {
 
     const employees: Employee[] = rows.map(r => ({
       label: r.label, to: r.to as `0x${string}`, amount: r.amount, interval: r.interval,
+      firstExecution: r.firstExecution,
     }));
 
     await addEmployeesBatch(employees, address as `0x${string}`, scheduler, abi, pc, (index, status, error) => {
@@ -64,10 +74,10 @@ export default function CsvImport({ address, scheduler, abi }: {
         CSV Bulk Import
       </div>
       <div style={{fontSize:11,color:"#8ab4cc",marginBottom:8}}>
-        CSV format: <span style={{color:"#3dd6f5",fontFamily:"DM Mono,monospace"}}>Label, Address, Amount(USDC), Interval</span>
+        CSV format: <span style={{color:"#3dd6f5",fontFamily:"DM Mono,monospace"}}>Label, Address, Amount(USDC), Interval, FirstPaymentDate</span>
       </div>
       <div style={{fontSize:10,color:"#8ab4cc",marginBottom:12}}>
-        Interval options: weekly / bi-weekly / monthly / quarterly
+        Interval: weekly/bi-weekly/monthly/quarterly · Date: today/tomorrow/YYYY-MM-DD (optional)
       </div>
       <input type="file" accept=".csv" onChange={handleFile}
         style={{fontSize:11,color:"#8ab4cc",marginBottom:12,display:"block"}}/>
