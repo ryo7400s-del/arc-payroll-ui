@@ -21,6 +21,7 @@ export type Employee = {
 };
 
 export type StepStatus = "approving" | "whitelisting" | "scheduling" | "done" | "error";
+export type ProgressCb = (index: number, status: StepStatus, error?: string, hash?: string) => void;
 
 export async function addEmployeesBatch(
   employees: Employee[],
@@ -28,7 +29,7 @@ export async function addEmployeesBatch(
   scheduler: `0x${string}`,
   abi: any,
   publicClient: any,
-  onProgress?: (index: number, status: StepStatus, error?: string) => void
+  onProgress?: ProgressCb
 ) {
   const wc = createWalletClient({ account: ownerAddress, chain: arcTestnet, transport: custom((window as any).ethereum) });
 
@@ -66,7 +67,7 @@ export async function addEmployeesBatch(
       });
       await publicClient.waitForTransactionReceipt({ hash: sh });
 
-      onProgress?.(i, "done");
+      onProgress?.(i, "done", undefined, sh);
     } catch (e: any) {
       onProgress?.(i, "error", e.message?.slice(0, 100));
     }

@@ -1,4 +1,5 @@
 "use client";
+import { addEmployeesBatch } from "./lib/employeeBatch";
 import WhitelistManager from "./components/WhitelistManager";
 import TxHistory from "./components/TxHistory";
 import CsvImport from "./components/CsvImport";
@@ -66,7 +67,7 @@ function shortAddr(addr: string) {
   return addr ? addr.slice(0,6)+"..."+addr.slice(-4) : "";
 }
 
-type TxState = "idle"|"approving"|"creating"|"executing"|"success"|"error";
+type TxState = "idle"|"approving"|"whitelisting"|"creating"|"executing"|"success"|"error";
 
 const publicClient = createPublicClient({
   chain: arcTestnet,
@@ -334,30 +335,20 @@ export default function ArcPayroll() {
   useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
 
   const handleCreate = useCallback(async () => {
-    const wc = typeof window !== "undefined" && (window as any).ethereum ? createWalletClient({ account: address!, chain: arcTestnet, transport: custom((window as any).ethereum) }) : null;
-    if (!wc || !address || !form.to || !form.amount) return;
+    if (!address || !form.to || !form.amount) return;
     setTxState("approving"); setTxError("");
     try {
-      const amount = parseUnits(form.amount, 6);
-      const allowance = await publicClient.readContract({
-        address:USDC, abi:USDC_ABI, functionName:"allowance", args:[address, SCHEDULER],
-      }) as bigint;
-      if (allowance < amount) {
-        const ah = await wc.writeContract({
-          address:USDC, abi:USDC_ABI, functionName:"approve",
-          args:[SCHEDULER, parseUnits("1000000",6)],
-        });
-        await publicClient.waitForTransactionReceipt({ hash:ah });
-      }
       const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
-      const hash = await wc.writeContract({
-        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"createSchedule",
-        args:[form.to as `0x${string}`, amount, BigInt(form.interval), form.label||"Employee", fe],
-
-      });
-
-      await publicClient.waitForTransactionReceipt({ hash });
-      setTxHash(hash);
+      await addEmployeesBatch(
+        [{ label: form.label||"Employee", to: form.to as `0x${string}`, amount: form.amount, interval: form.interval, firstExecution: fe }],
+        address, SCHEDULER, SCHEDULER_ABI, publicClient,
+        (_i, status, error, hash) => {
+          if (status === "whitelisting") setTxState("whitelisting");
+          if (status === "scheduling") setTxState("creating");
+          if (status === "done" && hash) setTxHash(hash);
+          if (status === "error") throw new Error(error || "Failed");
+        }
+      );
       setTxState("success");
       await fetchSchedules();
       setTimeout(()=>{ setTxState("idle"); setTxHash(""); setForm({to:"",amount:"",interval:2592000,label:"",firstExecution:""}); }, 6000);
