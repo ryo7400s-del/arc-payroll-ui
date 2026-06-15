@@ -35,6 +35,7 @@ const SCHEDULER_ABI = [
       {name:"amount",type:"uint256"},{name:"interval",type:"uint256"},
       {name:"nextExecution",type:"uint256"},{name:"active",type:"bool"},
       {name:"label",type:"string"},
+  { type:"function", name:"isWhitelisted", inputs:[{name:"owner",type:"address"},{name:"addr",type:"address"}], outputs:[{name:"",type:"bool"}] },
     ]}] },
   { type:"function", name:"addToWhitelist", inputs:[{name:"addr",type:"address"}], outputs:[] },
   { type:"function", name:"getWhitelist", inputs:[{name:"owner",type:"address"}], outputs:[{name:"",type:"address[]"}] },
