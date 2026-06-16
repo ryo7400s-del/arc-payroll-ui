@@ -1,6 +1,7 @@
 "use client";
 import { addEmployeesBatch } from "./lib/employeeBatch";
 import WhitelistManager from "./components/WhitelistManager";
+import SetupWizard from "./components/SetupWizard";
 import TxHistory from "./components/TxHistory";
 import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
@@ -573,6 +574,13 @@ export default function ArcPayroll() {
         {activeTab==="schedule" && (
           <div className="animate-in">
             <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); }} />
+            <SetupWizard
+              address={address||""}
+              scheduler={SCHEDULER}
+              hasSchedules={schedules.length>0}
+              onDeploy={()=>document.querySelector<HTMLButtonElement>(".submit-btn")?.click()}
+              onAddEmployee={()=>setActiveTab("dashboard")}
+            />
             <div className="card" style={{marginBottom:16}}>
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:8}}>Active Contract</div>
               <div style={{fontSize:10,color:"#3dd6f5",wordBreak:"break-all",marginBottom:8}}>{SCHEDULER}</div>
