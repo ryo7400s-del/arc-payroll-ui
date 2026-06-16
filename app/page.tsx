@@ -243,9 +243,10 @@ function StatusPill({ active }: { active: boolean }) {
 export default function ArcPayroll() {
   const [address,   setAddress]   = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
+  const [hasDeployedContract, setHasDeployedContract] = useState(false);
   const [balance,   setBalance]   = useState<string|null>(null);
   const [connecting,setConnecting]= useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("schedule");
   const [scanLine,  setScanLine]  = useState(0);
   const [txState,   setTxState]   = useState<TxState>("idle");
   const [txHash,    setTxHash]    = useState("");
@@ -279,7 +280,7 @@ export default function ArcPayroll() {
       const addr = accounts[0] as `0x${string}`;
       setAddress(addr);
       const saved = localStorage.getItem(`payroll_contract_${addr}`);
-      if (saved) setSCHEDULER(saved as `0x${string}`);
+      if (saved) { setSCHEDULER(saved as `0x${string}`); setHasDeployedContract(true); }
       // switch to Arc Testnet
      try {
         await (window as any).ethereum.request({
@@ -474,7 +475,7 @@ export default function ArcPayroll() {
         </div>
 
         <div style={{display:"flex",gap:4,marginBottom:28,background:"#090f18",padding:4,borderRadius:5,width:"fit-content"}}>
-          {[["dashboard","Dashboard"],["schedule","Schedule"],["history","History"]].map(([k,l])=>(
+          {[["schedule","Schedule"],["dashboard","Dashboard"],["history","History"]].map(([k,l])=>(
             <button key={k} className={`nav-btn${activeTab===k?" active":""}`} onClick={()=>setActiveTab(k)}>{l}</button>
           ))}
         </div>
@@ -573,14 +574,16 @@ export default function ArcPayroll() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); }} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} />
             <SetupWizard
               address={address||""}
-              scheduler={SCHEDULER}
+              hasDeployed={hasDeployedContract}
               hasSchedules={schedules.length>0}
               onDeploy={()=>document.querySelector<HTMLButtonElement>(".submit-btn")?.click()}
               onAddEmployee={()=>setActiveTab("dashboard")}
             />
+            {hasDeployedContract && (
+            <>
             <div className="card" style={{marginBottom:16}}>
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:8}}>Active Contract</div>
               <div style={{fontSize:10,color:"#3dd6f5",wordBreak:"break-all",marginBottom:8}}>{SCHEDULER}</div>
@@ -662,6 +665,8 @@ export default function ArcPayroll() {
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <a href={`https://testnet.arcscan.app/address/${SCHEDULER}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>{SCHEDULER.slice(0,10)}…</a>
             </div>
+            </>
+            )}
           </div>
         )}
         {activeTab==="history" && address && (

@@ -5,16 +5,16 @@ type Step = "deploy" | "employee" | "complete";
 
 type Props = {
   address: string;
-  scheduler: string;
+  hasDeployed: boolean;
   hasSchedules: boolean;
   onDeploy: () => void;
   onAddEmployee: () => void;
 };
 
-export default function SetupWizard({ address, scheduler, hasSchedules, onDeploy, onAddEmployee }: Props) {
+export default function SetupWizard({ address, hasDeployed, hasSchedules, onDeploy, onAddEmployee }: Props) {
   const [dismissed, setDismissed] = useState(false);
 
-  const isDeployed = scheduler !== "0xd3ea6652a52255749e036e730a13d0e252a7f50b";
+  const isDeployed = hasDeployed;
   const currentStep: Step = !isDeployed ? "deploy" : !hasSchedules ? "employee" : "complete";
 
   if (dismissed || currentStep === "complete") return null;
