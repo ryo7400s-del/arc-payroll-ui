@@ -475,7 +475,7 @@ export default function ArcPayroll() {
         </div>
 
         <div style={{display:"flex",gap:4,marginBottom:28,background:"#090f18",padding:4,borderRadius:5,width:"fit-content"}}>
-          {[["schedule","Schedule"],["dashboard","Dashboard"],["history","History"]].map(([k,l])=>(
+          {[["schedule","Setting"],["dashboard","Create Schedule"],["history","Dashboard"]].map(([k,l])=>(
             <button key={k} className={`nav-btn${activeTab===k?" active":""}`} onClick={()=>setActiveTab(k)}>{l}</button>
           ))}
         </div>
@@ -590,6 +590,39 @@ export default function ArcPayroll() {
               <input className="input-field" placeholder="0x... paste contract address to switch" onChange={e=>{ if(e.target.value.startsWith("0x")){ setSCHEDULER(e.target.value as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, e.target.value); }}}/>
               <button className="submit-btn" style={{marginTop:8}} onClick={async()=>{ if(!address) return; const wc=createWalletClient({account:address,chain:arcTestnet,transport:custom((window as any).ethereum)}); const REGISTRY="0xc01c0113e353c6fc1be7d32a80e9688e1256b81f" as `0x${string}`; const REGISTRY_ABI=[{type:"function",name:"register",inputs:[{name:"scheduler",type:"address"},{name:"name",type:"string"}],outputs:[]}] as const; try{ const h=await wc.writeContract({address:REGISTRY,abi:REGISTRY_ABI,functionName:"register",args:[SCHEDULER,"Company"]}); await publicClient.waitForTransactionReceipt({hash:h}); alert("✅ Registered: "+SCHEDULER); }catch(e:any){alert("Failed: "+e.message);} }}>Register This Contract in Registry</button>
             </div>
+            <div className="card" style={{marginTop:16}}>
+              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Whitelist Address</div>
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <div>
+                  <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>Wallet Address to Whitelist</div>
+                  <input className="input-field" placeholder="0x..." id="wl-input"/>
+                </div>
+                <button className="submit-btn" onClick={async()=>{
+                  const addr=(document.getElementById("wl-input") as HTMLInputElement).value;
+                  if(!addr||!address) return;
+                  const wc=createWalletClient({account:address,chain:arcTestnet,transport:custom((window as any).ethereum)});
+                  try{
+                    const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"addToWhitelist",args:[addr as `0x${string}`]});
+                    await publicClient.waitForTransactionReceipt({hash:h});
+                    alert("✅ Whitelisted! " + addr);
+                  }catch(e:any){alert("Failed: "+e.message);}
+                }}>Add to Whitelist 2192</button>
+              </div>
+              <div className="card" style={{marginTop:16}}>
+                <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:12}}>Whitelist Members</div>
+                {address && <WhitelistManager address={address} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} />}
+              </div>
+            </div>
+
+            <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <a href={`https://testnet.arcscan.app/address/${SCHEDULER}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>{SCHEDULER.slice(0,10)}…</a>
+            </div>
+            </>
+            )}
+          </div>
+        )}
+        {activeTab==="history" && address && (
+          <div className="animate-in">
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>
                 On-Chain Schedules
@@ -637,40 +670,6 @@ export default function ArcPayroll() {
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             </div>
 
-            <CsvImport address={address!} scheduler={SCHEDULER} abi={SCHEDULER_ABI} />
-            <div className="card" style={{marginTop:16}}>
-              <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Whitelist Address</div>
-              <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                <div>
-                  <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>Wallet Address to Whitelist</div>
-                  <input className="input-field" placeholder="0x..." id="wl-input"/>
-                </div>
-                <button className="submit-btn" onClick={async()=>{
-                  const addr=(document.getElementById("wl-input") as HTMLInputElement).value;
-                  if(!addr||!address) return;
-                  const wc=createWalletClient({account:address,chain:arcTestnet,transport:custom((window as any).ethereum)});
-                  try{
-                    const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"addToWhitelist",args:[addr as `0x${string}`]});
-                    await publicClient.waitForTransactionReceipt({hash:h});
-                    alert("✅ Whitelisted! " + addr);
-                  }catch(e:any){alert("Failed: "+e.message);}
-                }}>Add to Whitelist 2192</button>
-              </div>
-              <div className="card" style={{marginTop:16}}>
-                <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:12}}>Whitelist Members</div>
-                {address && <WhitelistManager address={address} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} />}
-              </div>
-            </div>
-
-            <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <a href={`https://testnet.arcscan.app/address/${SCHEDULER}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>{SCHEDULER.slice(0,10)}…</a>
-            </div>
-            </>
-            )}
-          </div>
-        )}
-        {activeTab==="history" && address && (
-          <div className="animate-in">
             <TxHistory address={address} scheduler={SCHEDULER} publicClient={publicClient} />
           </div>
         )}
