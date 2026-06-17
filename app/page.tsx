@@ -566,6 +566,7 @@ export default function ArcPayroll() {
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>⬡ x402 Payroll Report</div>
               <div style={{fontSize:11,color:"#4a7090",marginBottom:16,lineHeight:1.7}}>Pay <span style={{color:"#3dd6f5"}}>1 USDC</span> to unlock this month&apos;s payroll report — powered by HTTP 402 Payment Required protocol.</div>
+            <CsvImport address={address!} scheduler={SCHEDULER} abi={SCHEDULER_ABI} />
               <X402Send address={address} />
             </div>
           </div>
