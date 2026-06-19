@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { createWalletClient, custom } from "viem";
+import { createWalletClient, custom, encodeFunctionData } from "viem";
 
 const arcTestnet = {
   id:5042002, name:"Arc Testnet",
@@ -8,7 +8,21 @@ const arcTestnet = {
   rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}
 } as const;
 
-type Row = { label: string; address: string; status: "pending"|"success"|"error"|"skipped"; error?: string };
+const MULTICALL3FROM = "0x522fAf9A91c41c443c66765030741e4AaCe147D0" as `0x${string}`;
+const MULTICALL3FROM_ABI = [{
+  type:"function", name:"aggregate3",
+  inputs:[{name:"calls",type:"tuple[]",components:[
+    {name:"target",type:"address"},
+    {name:"allowFailure",type:"bool"},
+    {name:"callData",type:"bytes"}
+  ]}],
+  outputs:[{name:"returnData",type:"tuple[]",components:[
+    {name:"success",type:"bool"},
+    {name:"returnData",type:"bytes"}
+  ]}]
+}] as const;
+
+type Row = { label: string; address: string; status: "pending"|"success"|"skipped"|"error"; error?: string };
 
 export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClient }: {
   ownerAddress: string;
@@ -42,30 +56,57 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
     setRunning(true);
     const wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
 
+    // 既登録チェック
+    const toRegister: number[] = [];
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      try {
-        const isWl = await publicClient.readContract({
-          address: scheduler, abi, functionName: "isWhitelisted",
-          args: [ownerAddress as `0x${string}`, row.address as `0x${string}`],
-        }) as boolean;
-
-        if (isWl) {
-          setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: "skipped" } : r));
-          continue;
-        }
-
-        setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: "pending" } : r));
-        const h = await wc.writeContract({
-          address: scheduler, abi, functionName: "addToWhitelist",
-          args: [row.address as `0x${string}`],
-        });
-        await publicClient.waitForTransactionReceipt({ hash: h });
-        setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: "success" } : r));
-      } catch(e: any) {
-        setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: "error", error: e.message?.slice(0,50) } : r));
+      const isWl = await publicClient.readContract({
+        address: scheduler, abi, functionName: "isWhitelisted",
+        args: [ownerAddress as `0x${string}`, rows[i].address as `0x${string}`],
+      }) as boolean;
+      if (isWl) {
+        setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: "skipped" } : r));
+      } else {
+        toRegister.push(i);
       }
     }
+
+    if (toRegister.length === 0) {
+      setRunning(false);
+      setDone(true);
+      return;
+    }
+
+    try {
+      // バッチ用callsを作成
+      const calls = toRegister.map(i => ({
+        target: scheduler,
+        allowFailure: false,
+        callData: encodeFunctionData({
+          abi,
+          functionName: "addToWhitelist",
+          args: [rows[i].address as `0x${string}`],
+        }),
+      }));
+
+      // 1回のTXで全員登録
+      const hash = await wc.writeContract({
+        address: MULTICALL3FROM,
+        abi: MULTICALL3FROM_ABI,
+        functionName: "aggregate3",
+        args: [calls],
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      // 全員successに更新
+      setRows(prev => prev.map((r, idx) =>
+        toRegister.includes(idx) ? { ...r, status: "success" } : r
+      ));
+    } catch(e: any) {
+      setRows(prev => prev.map((r, idx) =>
+        toRegister.includes(idx) ? { ...r, status: "error", error: e.message?.slice(0,50) } : r
+      ));
+    }
+
     setRunning(false);
     setDone(true);
   };
@@ -79,7 +120,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
         CSV format: <span style={{color:"#3dd6f5",fontFamily:"DM Mono,monospace"}}>Label, Address</span>
       </div>
       <div style={{fontSize:10,color:"#8ab4cc",marginBottom:12}}>
-        既登録アドレスは自動スキップ
+        既登録アドレスは自動スキップ・全員1回のTXで登録
       </div>
       <input type="file" accept=".csv" onChange={handleFile}
         style={{fontSize:11,color:"#8ab4cc",marginBottom:12,display:"block"}}/>
@@ -102,9 +143,9 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
             ))}
           </div>
           <button className="submit-btn" onClick={handleImport} disabled={running||done}>
-            {running ? <><span className="spinning">◌</span> Importing {rows.filter(r=>r.status==="success").length}/{rows.length}…</>
-            : done ? "✓ Import Complete"
-            : `📋 Whitelist ${rows.length} Addresses →`}
+            {running ? <><span className="spinning">◌</span> Processing…</>
+            : done ? "✓ Complete"
+            : `📋 Whitelist ${rows.length} Addresses (1 TX) →`}
           </button>
         </>
       )}
