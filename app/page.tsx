@@ -16,12 +16,12 @@ const arcTestnet = {
   blockExplorers: { default: { name: "ArcScan", url: "https://testnet.arcscan.app" } },
 } as const;
 
-const DEFAULT_SCHEDULER = "0xd3ea6652a52255749e036e730a13d0e252a7f50b" as `0x${string}`;
+const DEFAULT_SCHEDULER = "0x721f88009e57f5471b2d3a242f05d7747b90ee99" as `0x${string}`;
 const USDC      = "0x3600000000000000000000000000000000000000" as `0x${string}`;
 
 const SCHEDULER_ABI = [
   { type:"function", name:"createSchedule",
-    inputs:[{name:"recipient",type:"address"},{name:"amount",type:"uint256"},{name:"interval",type:"uint256"},{name:"label",type:"string"},{name:"firstExecution",type:"uint256"}],
+    inputs:[{name:"recipient",type:"address"},{name:"amount",type:"uint256"},{name:"interval",type:"uint256"},{name:"label",type:"string"},{name:"firstExecution",type:"uint256"},{name:"useEURC",type:"bool"}],
     outputs:[{name:"",type:"uint96"}] },
   { type:"function", name:"executeSchedule",
     inputs:[{name:"owner",type:"address"},{name:"index",type:"uint256"}],
@@ -113,7 +113,7 @@ function X402Send({ address }: { address: string }) {
 
       // Step3: USDC approve + executeX402Payment
       setState("paying");
-      const SCHED = "0xd3ea6652a52255749e036e730a13d0e252a7f50b" as `0x${string}`;
+      const SCHED = "0x721f88009e57f5471b2d3a242f05d7747b90ee99" as `0x${string}`;
       const USDC_ABI = [{ type:"function", name:"approve", inputs:[{name:"spender",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}] },{ type:"function", name:"allowance", inputs:[{name:"owner",type:"address"},{name:"spender",type:"address"}], outputs:[{type:"uint256"}] }] as const;
       const X402_ABI = [{ type:"function", name:"executeX402Payment", inputs:[{ name:"req", type:"tuple", components:[{name:"payer",type:"address"},{name:"merchant",type:"address"},{name:"amount",type:"uint256"},{name:"expiry",type:"uint256"},{name:"nonce",type:"uint256"},{name:"signature",type:"bytes"}]}], outputs:[] }] as const;
       const allowance = await pc.readContract({ address:USDC2, abi:USDC_ABI, functionName:"allowance", args:[address as `0x${string}`, SCHED] }) as bigint;
@@ -253,7 +253,7 @@ export default function ArcPayroll() {
   const [txError,   setTxError]   = useState("");
   const [schedules, setSchedules] = useState<any[]>([]);
   const [weeklyLeft,setWeeklyLeft]= useState<string|null>(null);
-  const [form, setForm] = useState({ to:"", amount:"", interval:2592000, label:"", firstExecution:"" });
+  const [form, setForm] = useState({ to:"", amount:"", interval:2592000, label:"", firstExecution:"", useEURC:false });
 
   useEffect(() => {
     const t = setInterval(()=>setScanLine(s=>(s+1)%100), 60);
@@ -343,7 +343,7 @@ export default function ArcPayroll() {
     try {
       const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
       await addEmployeesBatch(
-        [{ label: form.label||"Employee", to: form.to as `0x${string}`, amount: form.amount, interval: form.interval, firstExecution: fe }],
+        [{ label: form.label||"Employee", to: form.to as `0x${string}`, amount: form.amount, interval: form.interval, firstExecution: fe, useEURC: form.useEURC }],
         address, SCHEDULER, SCHEDULER_ABI, publicClient,
         (_i, status, error, hash) => {
           if (status === "whitelisting") setTxState("whitelisting");
@@ -354,7 +354,7 @@ export default function ArcPayroll() {
       );
       setTxState("success");
       await fetchSchedules();
-      setTimeout(()=>{ setTxState("idle"); setTxHash(""); setForm({to:"",amount:"",interval:2592000,label:"",firstExecution:""}); }, 6000);
+      setTimeout(()=>{ setTxState("idle"); setTxHash(""); setForm({to:"",amount:"",interval:2592000,label:"",firstExecution:"",useEURC:false}); }, 6000);
     } catch(e:any) {
       setTxError(e.message||"Failed");
       setTxState("error");
@@ -544,6 +544,12 @@ export default function ArcPayroll() {
                   <div style={{marginTop:12}}>
                     <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>First Payment Date (optional)</div>
                     <input type="date" className="input-field" value={form.firstExecution} onChange={e=>setForm(f=>({...f,firstExecution:e.target.value}))} min={new Date().toISOString().split("T")[0]} style={{colorScheme:"dark"}}/>
+                  </div>
+                  <div style={{marginTop:12,display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{fontSize:10,color:"#8ab4cc"}}>受取通貨：</div>
+                    <button onClick={()=>setForm(f=>({...f,useEURC:false}))} style={{padding:"4px 12px",borderRadius:3,fontSize:11,cursor:"pointer",background:!form.useEURC?"#3dd6f5":"none",color:!form.useEURC?"#070e18":"#8ab4cc",border:"1px solid #3dd6f5"}}>USDC</button>
+                    <button onClick={()=>setForm(f=>({...f,useEURC:true}))} style={{padding:"4px 12px",borderRadius:3,fontSize:11,cursor:"pointer",background:form.useEURC?"#a78bfa":"none",color:form.useEURC?"#070e18":"#8ab4cc",border:"1px solid #a78bfa"}}>EURC 🇪🇺</button>
+                    {form.useEURC && <span style={{fontSize:10,color:"#a78bfa"}}>USDCをCurveで自動スワップ</span>}
                   </div>
                     </div>
                   </div>

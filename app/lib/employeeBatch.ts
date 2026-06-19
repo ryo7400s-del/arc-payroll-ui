@@ -18,6 +18,7 @@ export type Employee = {
   amount: string;
   interval: number;
   firstExecution?: bigint;
+  useEURC?: boolean;
 };
 
 export type StepStatus = "approving" | "whitelisting" | "scheduling" | "done" | "error";
@@ -63,7 +64,7 @@ export async function addEmployeesBatch(
       onProgress?.(i, "scheduling");
       const sh = await wc.writeContract({
         address: scheduler, abi, functionName: "createSchedule",
-        args: [emp.to, parseUnits(emp.amount, 6), BigInt(emp.interval), emp.label, emp.firstExecution ?? 0n],
+        args: [emp.to, parseUnits(emp.amount, 6), BigInt(emp.interval), emp.label, emp.firstExecution ?? 0n, emp.useEURC ?? false],
       });
       await publicClient.waitForTransactionReceipt({ hash: sh });
 
