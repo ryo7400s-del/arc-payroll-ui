@@ -1,6 +1,7 @@
 "use client";
 import { addEmployeesBatch } from "./lib/employeeBatch";
 import WhitelistManager from "./components/WhitelistManager";
+import CsvWhitelist from "./components/CsvWhitelist";
 import SetupWizard from "./components/SetupWizard";
 import TxHistory from "./components/TxHistory";
 import CsvImport from "./components/CsvImport";
@@ -623,6 +624,7 @@ export default function ArcPayroll() {
 
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <a href={`https://testnet.arcscan.app/address/${SCHEDULER}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>{SCHEDULER.slice(0,10)}…</a>
+              <CsvWhitelist ownerAddress={address||""} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} />
             </div>
             </>
             )}
