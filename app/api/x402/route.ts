@@ -6,7 +6,7 @@ const arcTestnet = {
   nativeCurrency: { name:"USDC", symbol:"USDC", decimals:18 },
   rpcUrls: { default: { http: ["https://rpc.testnet.arc.network"] } },
 } as const;
-const SCHEDULER = "0x38c36935db09955315de0ff64b767f838e507528" as `0x${string}`;
+const SCHEDULER = "0xe4150530084e49aff57fa91d6d3c207be6271c27" as `0x${string}`;
 const DEFAULT_MERCHANT = "0x2032C2aC5cdB02b2e0D46e015Af991C257edd388" as `0x${string}`;
 const ABI = [
   { type:"function", name:"isWhitelisted",
