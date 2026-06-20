@@ -63,16 +63,18 @@ export default function CsvImport({ address, scheduler, abi }: {
       }).filter(r => r.to.startsWith("0x"));
       setRows(parsed);
       setDone(false);
-      // ホワイトリスト状態をチェック
+      // ホワイトリスト状態を非同期でチェック
       const pc2 = createPublicClient({ chain: arcTestnet, transport: http() });
-      const checked = await Promise.all(parsed.map(async r => {
-        if (!r.to.startsWith("0x")) return r;
+      Promise.all(parsed.map(async (r, idx) => {
+        if (!r.to.startsWith("0x")) return;
         try {
-          const isWl = await pc2.readContract({ address: scheduler, abi, functionName: "isWhitelisted", args: [address as \`0x\${string}\`, r.to as \`0x\${string}\`] }) as boolean;
-          return { ...r, isWhitelisted: isWl };
-        } catch { return r; }
+          const isWl = await pc2.readContract({
+            address: scheduler, abi, functionName: "isWhitelisted",
+            args: [address as `0x${string}`, r.to as `0x${string}`]
+          }) as boolean;
+          setRows(prev => prev.map((row, i) => i === idx ? { ...row, isWhitelisted: isWl } : row));
+        } catch {}
       }));
-      setRows(checked);
     };
     reader.readAsText(file);
   };
