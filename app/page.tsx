@@ -70,7 +70,7 @@ function shortAddr(addr: string) {
   return addr ? addr.slice(0,6)+"..."+addr.slice(-4) : "";
 }
 
-type TxState = "idle"|"approving"|"whitelisting"|"creating"|"executing"|"success"|"error";
+type TxState = "idle"|"approving"|"creating"|"executing"|"success"|"error";
 
 const publicClient = createPublicClient({
   chain: arcTestnet,
@@ -347,7 +347,6 @@ export default function ArcPayroll() {
         [{ label: form.label||"Employee", to: form.to as `0x${string}`, amount: form.amount, interval: form.interval, firstExecution: fe, useEURC: form.useEURC }],
         address, SCHEDULER, SCHEDULER_ABI, publicClient,
         (_i, status, error, hash) => {
-          if (status === "whitelisting") setTxState("whitelisting");
           if (status === "scheduling") setTxState("creating");
           if (status === "done" && hash) setTxHash(hash);
           if (status === "error") throw new Error(error || "Failed");

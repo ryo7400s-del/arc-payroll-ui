@@ -21,7 +21,7 @@ export type Employee = {
   useEURC?: boolean;
 };
 
-export type StepStatus = "approving" | "whitelisting" | "scheduling" | "done" | "error";
+export type StepStatus = "approving" | "scheduling" | "done" | "error";
 export type ProgressCb = (index: number, status: StepStatus, error?: string, hash?: string) => void;
 
 export async function addEmployeesBatch(
@@ -49,18 +49,6 @@ export async function addEmployeesBatch(
   for (let i = 0; i < employees.length; i++) {
     const emp = employees[i];
     try {
-      const isWl = await publicClient.readContract({
-        address: scheduler, abi, functionName: "isWhitelisted", args: [ownerAddress, emp.to],
-      }) as boolean;
-
-      if (!isWl) {
-        onProgress?.(i, "whitelisting");
-        const wh = await wc.writeContract({
-          address: scheduler, abi, functionName: "addToWhitelist", args: [emp.to],
-        });
-        await publicClient.waitForTransactionReceipt({ hash: wh });
-      }
-
       onProgress?.(i, "scheduling");
       const sh = await wc.writeContract({
         address: scheduler, abi, functionName: "createSchedule",
