@@ -22,6 +22,7 @@ const MULTICALL3FROM_ABI = [{
 type Row = {
   label: string; to: string; amount: string; interval: number;
   firstExecution?: bigint; useEURC: boolean;
+  isWhitelisted?: boolean;
   status: "pending"|"success"|"error"; error?: string;
 };
 
@@ -62,6 +63,16 @@ export default function CsvImport({ address, scheduler, abi }: {
       }).filter(r => r.to.startsWith("0x"));
       setRows(parsed);
       setDone(false);
+      // ホワイトリスト状態をチェック
+      const pc2 = createPublicClient({ chain: arcTestnet, transport: http() });
+      const checked = await Promise.all(parsed.map(async r => {
+        if (!r.to.startsWith("0x")) return r;
+        try {
+          const isWl = await pc2.readContract({ address: scheduler, abi, functionName: "isWhitelisted", args: [address as \`0x\${string}\`, r.to as \`0x\${string}\`] }) as boolean;
+          return { ...r, isWhitelisted: isWl };
+        } catch { return r; }
+      }));
+      setRows(checked);
     };
     reader.readAsText(file);
   };
@@ -144,7 +155,12 @@ export default function CsvImport({ address, scheduler, abi }: {
             {rows.map((r, i) => (
               <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1.2fr 50px 70px 50px 60px",gap:6,padding:"6px 8px",background:"#070e18",borderRadius:4,border:"1px solid #0e1b28",alignItems:"center"}}>
                 <span style={{fontSize:11,color:"#8ab4cc"}}>{r.label}</span>
-                <span style={{fontSize:10,color:"#3dd6f5",fontFamily:"DM Mono,monospace"}}>{r.to.slice(0,8)}…</span>
+                <span style={{fontSize:10,color:"#3dd6f5",fontFamily:"DM Mono,monospace",display:"flex",alignItems:"center",gap:4}}>
+                  {r.to.slice(0,8)}…
+                  {r.isWhitelisted !== undefined && (
+                    <span style={{fontSize:10}}>{r.isWhitelisted ? "✅" : "❌"}</span>
+                  )}
+                </span>
                 <span style={{fontSize:11,color:"#00e5a0"}}>{r.amount}</span>
                 <span style={{fontSize:10,color:"#a78bfa"}}>{r.interval===604800?"Weekly":r.interval===1209600?"Bi-weekly":r.interval===2592000?"Monthly":"Quarterly"}</span>
                 <span style={{fontSize:10,color:r.useEURC?"#a78bfa":"#3dd6f5"}}>{r.useEURC?"EURC":"USDC"}</span>
