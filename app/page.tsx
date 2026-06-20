@@ -253,6 +253,7 @@ export default function ArcPayroll() {
   const [txHash,    setTxHash]    = useState("");
   const [txError,   setTxError]   = useState("");
   const [schedules, setSchedules] = useState<any[]>([]);
+  const [whitelistCount, setWhitelistCount] = useState(0);
   const [weeklyLeft,setWeeklyLeft]= useState<string|null>(null);
   const [form, setForm] = useState({ to:"", amount:"", interval:2592000, label:"", firstExecution:"", useEURC:false });
 
@@ -333,6 +334,8 @@ export default function ArcPayroll() {
         address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"weeklyRemaining", args:[address],
       }) as bigint;
       setWeeklyLeft((Number(rem)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2}));
+      const wl = await publicClient.readContract({ address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getWhitelist", args:[address] }) as any[];
+      setWhitelistCount(wl.length);
     } catch(e) { console.error(e); }
   }, [address, SCHEDULER]);
 
@@ -585,9 +588,11 @@ export default function ArcPayroll() {
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
+              hasWhitelist={whitelistCount>0}
               hasSchedules={schedules.length>0}
               onDeploy={()=>document.querySelector<HTMLButtonElement>(".submit-btn")?.click()}
-              onAddEmployee={()=>setActiveTab("dashboard")}
+              onWhitelist={()=>{ const el = document.getElementById("wl-input"); if(el) el.scrollIntoView({behavior:"smooth"}); }}
+              onSchedule={()=>setActiveTab("dashboard")}
             />
             {hasDeployedContract && (
             <>

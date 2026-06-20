@@ -1,28 +1,30 @@
 "use client";
 import { useState } from "react";
 
-type Step = "deploy" | "employee" | "complete";
+type Step = "deploy" | "whitelist" | "schedule" | "complete";
 
 type Props = {
   address: string;
   hasDeployed: boolean;
+  hasWhitelist: boolean;
   hasSchedules: boolean;
   onDeploy: () => void;
-  onAddEmployee: () => void;
+  onWhitelist: () => void;
+  onSchedule: () => void;
 };
 
-export default function SetupWizard({ address, hasDeployed, hasSchedules, onDeploy, onAddEmployee }: Props) {
+export default function SetupWizard({ address, hasDeployed, hasWhitelist, hasSchedules, onDeploy, onWhitelist, onSchedule }: Props) {
   const [dismissed, setDismissed] = useState(false);
 
-  const isDeployed = hasDeployed;
-  const currentStep: Step = !isDeployed ? "deploy" : !hasSchedules ? "employee" : "complete";
+  const currentStep: Step = !hasDeployed ? "deploy" : !hasWhitelist ? "whitelist" : !hasSchedules ? "schedule" : "complete";
 
   if (dismissed || currentStep === "complete") return null;
 
   const steps = [
-    { id: "deploy",    num: 1, label: "Deploy Contract",  desc: "企業専用のスマートコントラクトを作成" },
-    { id: "employee",  num: 2, label: "Add to Whitelist",   desc: "Add employee wallet addresses to whitelist" },
-    { id: "complete",  num: 3, label: "Auto Payroll",     desc: "自動送金が開始されます" },
+    { id: "deploy",    num: 1, label: "Deploy Contract",   desc: "Create your dedicated smart contract" },
+    { id: "whitelist", num: 2, label: "Add to Whitelist",  desc: "Register employee wallet addresses" },
+    { id: "schedule",  num: 3, label: "Add First Employee", desc: "Set up payroll schedule" },
+    { id: "complete",  num: 4, label: "Auto Payroll",       desc: "Automatic payments activated" },
   ];
 
   return (
@@ -31,19 +33,16 @@ export default function SetupWizard({ address, hasDeployed, hasSchedules, onDepl
       <div style={{fontSize:10,letterSpacing:".14em",color:"#3dd6f5",textTransform:"uppercase",marginBottom:14}}>
         🚀 Getting Started
       </div>
-
       <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
-        {steps.map((step, i) => {
-          const isDone = (step.id==="deploy" && isDeployed) || (step.id==="employee" && hasSchedules);
+        {steps.map((step) => {
+          const isDone =
+            (step.id==="deploy" && hasDeployed) ||
+            (step.id==="whitelist" && hasWhitelist) ||
+            (step.id==="schedule" && hasSchedules);
           const isActive = step.id === currentStep;
           return (
             <div key={step.id} style={{display:"flex",alignItems:"center",gap:12,opacity:isDone||isActive?1:0.4}}>
-              <div style={{
-                width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
-                flexShrink:0,fontSize:12,fontWeight:700,
-                background:isDone?"#00e5a0":isActive?"#3dd6f5":"#1a2a3a",
-                color:isDone||isActive?"#070e18":"#4a6070",
-              }}>
+              <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:700,background:isDone?"#00e5a0":isActive?"#3dd6f5":"#1a2a3a",color:isDone||isActive?"#070e18":"#4a6070"}}>
                 {isDone ? "✓" : step.num}
               </div>
               <div>
@@ -54,16 +53,14 @@ export default function SetupWizard({ address, hasDeployed, hasSchedules, onDepl
           );
         })}
       </div>
-
       {currentStep === "deploy" && (
-        <button className="submit-btn" onClick={onDeploy}>
-          🚀 Step 1: Deploy My Payroll Contract →
-        </button>
+        <button className="submit-btn" onClick={onDeploy}>🚀 Step 1: Deploy My Payroll Contract →</button>
       )}
-      {currentStep === "employee" && (
-        <button className="submit-btn" onClick={onAddEmployee}>
-          👤 Step 2: Add First Employee →
-        </button>
+      {currentStep === "whitelist" && (
+        <button className="submit-btn" onClick={onWhitelist}>📋 Step 2: Add to Whitelist →</button>
+      )}
+      {currentStep === "schedule" && (
+        <button className="submit-btn" onClick={onSchedule}>👤 Step 3: Add First Employee →</button>
       )}
     </div>
   );
