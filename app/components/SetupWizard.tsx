@@ -21,7 +21,7 @@ export default function SetupWizard({ address, hasDeployed, hasSchedules, onDepl
 
   const steps = [
     { id: "deploy",    num: 1, label: "Deploy Contract",  desc: "企業専用のスマートコントラクトを作成" },
-    { id: "employee",  num: 2, label: "Add Employee",     desc: "従業員の給与スケジュールを設定" },
+    { id: "employee",  num: 2, label: "Add to Whitelist",   desc: "Add employee wallet addresses to whitelist" },
     { id: "complete",  num: 3, label: "Auto Payroll",     desc: "自動送金が開始されます" },
   ];
 
