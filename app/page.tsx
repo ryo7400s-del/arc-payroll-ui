@@ -247,6 +247,7 @@ export default function ArcPayroll() {
   const [hasDeployedContract, setHasDeployedContract] = useState(false);
   const [balance,   setBalance]   = useState<string|null>(null);
   const [connecting,setConnecting]= useState(false);
+  const [showCircleLogin, setShowCircleLogin] = useState(false);
   const [activeTab, setActiveTab] = useState("schedule");
   const [scanLine,  setScanLine]  = useState(0);
   const [txState,   setTxState]   = useState<TxState>("idle");
