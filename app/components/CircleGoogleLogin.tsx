@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import type { W3SSdk } from "@circle-fin/w3s-pw-web-sdk";
+import { SocialLoginProvider } from "@circle-fin/w3s-pw-web-sdk/dist/src/types";
 
 const APP_ID = process.env.NEXT_PUBLIC_CIRCLE_APP_ID!;
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
@@ -72,7 +73,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
     setLoading(true); setError(""); setStatus("Googleでログイン中…");
     try {
       // Google OAuth実行
-      await sdkRef.current.performLogin("google");
+      await sdkRef.current.performLogin(SocialLoginProvider.GOOGLE);
     } catch(e: any) {
       setError(e.message || "ログイン失敗");
     } finally {
