@@ -43,42 +43,47 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
     setLoading(true); setError(""); setStatus("Googleでログイン中…");
     try {
       // Google OAuth実行
-      await sdkRef.current.performLogin("google", async (result: any) => {
-        const userId = result?.oAuthInfo?.sub || result?.oAuthInfo?.email;
-        if (!userId) throw new Error("Google認証失敗");
-        setStatus("Circle Walletを設定中…");
+      sdkRef.current.setOnLoginComplete(async (result: any) => {
+        try {
+          const userId = result?.oAuthInfo?.sub || result?.oAuthInfo?.email;
+          if (!userId) throw new Error("Google認証失敗");
+          setStatus("Circle Walletを設定中…");
 
-        // サーバーからtokenを取得
-        const res = await fetch("/api/circle", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
+          // サーバーからtokenを取得
+          const res = await fetch("/api/circle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId }),
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
 
-        if (data.challengeId) {
-          // 初回：PIN設定チャレンジ
-          setStatus("PINを設定してください…");
-          sdkRef.current!.setAuthentication({
-            userToken: data.userToken,
-            encryptionKey: data.encryptionKey,
-          });
-          await sdkRef.current!.execute(data.challengeId, async (err: any, result: any) => {
-            if (err) throw err;
-            // ウォレット作成後アドレス取得
-            const walletRes = await fetch(`/api/circle?userId=${encodeURIComponent(userId)}`);
-            const walletData = await walletRes.json();
-            if (walletData.walletAddress) {
-              setStatus("✅ 接続完了！");
-              onConnected(walletData.walletAddress);
-            }
-          });
-        } else if (data.walletAddress) {
-          setStatus("✅ 接続完了！");
-          onConnected(data.walletAddress);
+          if (data.challengeId) {
+            setStatus("PINを設定してください…");
+            sdkRef.current!.setAuthentication({
+              userToken: data.userToken,
+              encryptionKey: data.encryptionKey,
+            });
+            sdkRef.current!.execute(data.challengeId, async (err: any) => {
+              if (err) { setError(err.message); return; }
+              const walletRes = await fetch(`/api/circle?userId=${encodeURIComponent(userId)}`);
+              const walletData = await walletRes.json();
+              if (walletData.walletAddress) {
+                setStatus("✅ 接続完了！");
+                onConnected(walletData.walletAddress);
+              }
+            });
+          } else if (data.walletAddress) {
+            setStatus("✅ 接続完了！");
+            onConnected(data.walletAddress);
+          }
+        } catch(e: any) {
+          setError(e.message);
+        } finally {
+          setLoading(false);
         }
       });
+      await sdkRef.current.performLogin("google");
     } catch(e: any) {
       setError(e.message || "ログイン失敗");
     } finally {
