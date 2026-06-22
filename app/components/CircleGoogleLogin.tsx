@@ -25,15 +25,16 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       const onLoginComplete = async (result: any) => {
         try {
           console.log("Circle login result:", JSON.stringify(result, null, 2));
+          // エラーチェック
+          if (result?.code || result?.message) {
+            throw new Error(`Circle Error: ${result.message || result.code}`);
+          }
           const userId = result?.oAuthInfo?.sub 
             || result?.oAuthInfo?.email
             || result?.sub
-            || result?.email
-            || result?.userId
-            || result?.userToken;
+            || result?.email;
           if (!userId) {
-            console.error("No userId found in result:", result);
-            throw new Error("Google認証失敗: " + JSON.stringify(Object.keys(result || {})));
+            throw new Error("userId取得失敗: " + JSON.stringify(result));
           }
           setStatus("Circle Walletを設定中…");
           const res = await fetch("/api/circle", {

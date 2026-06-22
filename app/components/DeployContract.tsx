@@ -55,7 +55,7 @@ export default function DeployContract({ onDeployed }: { onDeployed?: (addr: str
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
       <div>
         <div style={{fontSize:10,color:"#8ab4cc",marginBottom:6}}>Company Name (optional)</div>
-        <input className="input-field" placeholder="e.g. Acme Corp" value={companyName} onChange={e=>setCompanyName(e.target.value)}/>
+        <input className="input-field" placeholder="e.g. Arc Payroll" value={companyName} onChange={e=>setCompanyName(e.target.value)}/>
       </div>
       <button className="submit-btn" onClick={handleDeploy} disabled={status==="deploying"||status==="registering"||status==="done"}>
         {status==="deploying" ? <><span className="spinning">◌</span> Deploying…</>
