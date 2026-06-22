@@ -4,6 +4,7 @@ import WhitelistManager from "./components/WhitelistManager";
 import CsvWhitelist from "./components/CsvWhitelist";
 import SetupWizard from "./components/SetupWizard";
 import TxHistory from "./components/TxHistory";
+import CircleGoogleLogin from "./components/CircleGoogleLogin";
 import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
 import { useState, useEffect, useCallback } from "react";
@@ -474,6 +475,11 @@ export default function ArcPayroll() {
             )}
           </div>
         </div>
+        {showCircleLogin && !address && (
+          <div style={{padding:"16px",background:"#070e18",borderBottom:"1px solid #a78bfa44"}}>
+            <CircleGoogleLogin onConnected={(addr)=>{ setAddress(addr as `0x${string}`); setShowCircleLogin(false); }} />
+          </div>
+        )}
 
         <div style={{marginBottom:28,padding:"12px 18px",background:"linear-gradient(90deg,#071929,#091e30)",border:"1px solid #0f2235",borderRadius:5,display:"flex",alignItems:"center",gap:16}}>
           <span style={{fontSize:11,color:"#3dd6f5"}}>⬡</span>
