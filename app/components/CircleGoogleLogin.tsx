@@ -72,7 +72,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
     setLoading(true); setError(""); setStatus("Googleでログイン中…");
     try {
       // Google OAuth実行
-      await sdkRef.current.performGoogleLogin();
+      await sdkRef.current.performLogin("google");
     } catch(e: any) {
       setError(e.message || "ログイン失敗");
     } finally {
