@@ -467,7 +467,10 @@ export default function ArcPayroll() {
             ) : (
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:11,color:"#3dd6f5",fontWeight:500}}>{shortAddr(address)}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{fontSize:11,color:"#3dd6f5",fontWeight:500}}>{shortAddr(address)}</div>
+                    <button onClick={()=>navigator.clipboard.writeText(address||"")} title={address||""} style={{background:"none",border:"1px solid #3dd6f5",color:"#3dd6f5",fontSize:9,padding:"2px 6px",borderRadius:3,cursor:"pointer"}}>Copy</button>
+                  </div>
                   <div style={{fontSize:10,color:"#8ab4cc"}}>{balance??"-"} USDC</div>
                 </div>
                 <button className="disconnect-btn" onClick={disconnect}>✕</button>
@@ -479,19 +482,10 @@ export default function ArcPayroll() {
           <div style={{padding:"16px",background:"#070e18",borderBottom:"1px solid #a78bfa44"}}>
             <CircleGoogleLogin onConnected={(addr)=>{
               setAddress(addr as `0x${string}`);
-              setShowCircleLogin(false);
             }} />
           </div>
         )}
-        {address && showCircleLogin && (
-          <div style={{padding:"12px 16px",background:"#070e18",borderBottom:"1px solid #a78bfa44"}}>
-            <div style={{fontSize:10,color:"#a78bfa",marginBottom:6}}>🌐 Circle Wallet Connected</div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:11,color:"#3dd6f5",fontFamily:"DM Mono,monospace",wordBreak:"break-all"}}>{address}</span>
-              <button onClick={()=>navigator.clipboard.writeText(address)} style={{flexShrink:0,background:"none",border:"1px solid #3dd6f5",color:"#3dd6f5",fontSize:9,padding:"3px 8px",borderRadius:3,cursor:"pointer"}}>Copy</button>
-            </div>
-          </div>
-        )}
+
 
         <div style={{marginBottom:28,padding:"12px 18px",background:"linear-gradient(90deg,#071929,#091e30)",border:"1px solid #0f2235",borderRadius:5,display:"flex",alignItems:"center",gap:16}}>
           <span style={{fontSize:11,color:"#3dd6f5"}}>⬡</span>
