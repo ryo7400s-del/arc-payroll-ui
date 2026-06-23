@@ -133,6 +133,17 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
 
   const handleLogin = async () => {
     if (!sdkRef.current || !deviceId) return;
+    
+    // 🟢 Googleリダイレクト直前の環境変数デバッグ
+    console.log("=== Google Login Frontend Env Check ===");
+    console.log("NEXT_PUBLIC_CIRCLE_APP_ID:", process.env.NEXT_PUBLIC_CIRCLE_APP_ID);
+    console.log("NEXT_PUBLIC_GOOGLE_CLIENT_ID:", process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+    console.log("Redirect URI:", typeof window !== "undefined" ? window.location.origin : "");
+    
+    if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.includes("undefined")) {
+      alert("❌ エラー: NEXT_PUBLIC_GOOGLE_CLIENT_ID がブラウザ側で読み込めていません！虚無(undefined)になっています。");
+    }
+
     setLoading(true); setError(""); setStatus("deviceToken取得中…");
 
     try {
