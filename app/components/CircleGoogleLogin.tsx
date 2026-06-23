@@ -1,35 +1,17 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { convertChallengeIdToSmsInitial, initiateUserControlledWalletsWebClient } from "@circle-fin/user-controlled-wallets-web";
+import React, { useState } from "react";
 
 export default function CircleGoogleLogin() {
-  const [deviceId, setDeviceId] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const sdkRef = useRef<any>(null);
-
-  useEffect(() => {
-    // クライアント側でのみSDKを初期化
-    const client = initiateUserControlledWalletsWebClient();
-    sdkRef.current = client;
-
-    // デバイスIDの生成・取得
-    client.getDeviceId((id: string, error: any) => {
-      if (error) {
-        console.error("Device ID creation error:", error);
-        return;
-      }
-      setDeviceId(id);
-    });
-  }, []);
 
   const handleLogin = async () => {
-    if (!sdkRef.current || !deviceId) return;
     setLoading(true);
 
     try {
-      // 1. バックエンドからdeviceTokenを取得
-      const tokenRes = await fetch("/app/api/endpoints", {
+      // 1. バックエンドからdeviceTokenを取得（検証用に一応叩く、またはGoogleログイン後に処理）
+      const deviceId = "temp-device-id-" + Math.random().toString(36).substring(2);
+      const tokenRes = await fetch("/api/endpoints", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "createDeviceToken", deviceId }),
@@ -38,39 +20,25 @@ export default function CircleGoogleLogin() {
 
       if (!tokenRes.ok) throw new Error(tokenData.error || "Failed to create device token");
 
-      // 2. Circle Web SDK を使用してGoogleソーシャルログインを実行
-      sdkRef.current.performLogin(
-        {
-          provider: "google",
-          clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
-          redirectUri: typeof window !== "undefined" ? window.location.origin : "",
-        },
-        async (error: any, loginResult: any) => {
-          if (error) {
-            console.error("Login error:", error);
-            setLoading(false);
-            return;
-          }
+      // 2. Google OAuth 認証画面への手動リダイレクト
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
+      const redirectUri = typeof window !== "undefined" ? window.location.origin : "";
+      
+      // Googleログイン用のURLを手動で構築
+      const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
+        `client_id=${encodeURIComponent(clientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=id_token` +
+        `&scope=openid%20email%20profile` +
+        `&nonce=circle_auth_nonce` +
+        `&id_token_hint=`;
 
-          // 3. ログイン成功後、バックエンドを叩いてユーザーを初期化 (ウォレット作成)
-          const initRes = await fetch("/app/api/endpoints", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "initializeUser",
-              userToken: loginResult.userToken,
-            }),
-          });
-          const initData = await initRes.json();
+      // Googleログイン画面へ遷移
+      window.location.href = googleAuthUrl;
 
-          if (!initRes.ok) throw new Error(initData.error || "Failed to initialize user");
-
-          console.log("User & Wallet Initialized successfully:", initData);
-          setLoading(false);
-        }
-      );
     } catch (err: any) {
       console.error("Authentication Flow Error:", err);
+      alert("エラーが発生しました: " + err.message);
       setLoading(false);
     }
   };
@@ -79,7 +47,7 @@ export default function CircleGoogleLogin() {
     <div className="flex flex-col items-center justify-center p-4">
       <button
         onClick={handleLogin}
-        disabled={loading || !deviceId}
+        disabled={loading}
         className="px-6 py-3 font-semibold text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition"
       >
         {loading ? "Authenticating..." : "🔐 Googleでログイン"}
