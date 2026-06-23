@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import path from "path";
 
-const CIRCLE_BASE_URL = "https://api.circle.com";
+const CIRCLE_BASE_URL = "https://api-sandbox.circle.com";
 
 export async function POST(req: NextRequest) {
   const { userToken, companyName } = await req.json();

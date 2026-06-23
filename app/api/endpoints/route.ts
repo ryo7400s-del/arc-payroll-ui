@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const CIRCLE_BASE_URL = "https://api.circle.com";
+const CIRCLE_BASE_URL = "https://api-sandbox.circle.com";
 const CIRCLE_API_KEY = process.env.CIRCLE_API_KEY as string;
 
 export async function POST(request: Request) {
