@@ -68,6 +68,15 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       }
 
       if (!cancelled) setSdkReady(true);
+
+      // Googleリダイレクト後の自動処理
+      if (typeof window !== "undefined" && window.location.hash) {
+        try {
+          await (sdk as any).handleHashLoginResponse();
+        } catch(e) {
+          console.log("handleHashLoginResponse:", e);
+        }
+      }
     })();
     return () => { cancelled = true; };
   }, []);

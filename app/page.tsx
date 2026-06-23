@@ -477,7 +477,19 @@ export default function ArcPayroll() {
         </div>
         {showCircleLogin && !address && (
           <div style={{padding:"16px",background:"#070e18",borderBottom:"1px solid #a78bfa44"}}>
-            <CircleGoogleLogin onConnected={(addr)=>{ setAddress(addr as `0x${string}`); setShowCircleLogin(false); }} />
+            <CircleGoogleLogin onConnected={(addr)=>{
+              setAddress(addr as `0x${string}`);
+              setShowCircleLogin(false);
+            }} />
+          </div>
+        )}
+        {address && showCircleLogin && (
+          <div style={{padding:"12px 16px",background:"#070e18",borderBottom:"1px solid #a78bfa44"}}>
+            <div style={{fontSize:10,color:"#a78bfa",marginBottom:6}}>🌐 Circle Wallet Connected</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:11,color:"#3dd6f5",fontFamily:"DM Mono,monospace",wordBreak:"break-all"}}>{address}</span>
+              <button onClick={()=>navigator.clipboard.writeText(address)} style={{flexShrink:0,background:"none",border:"1px solid #3dd6f5",color:"#3dd6f5",fontSize:9,padding:"3px 8px",borderRadius:3,cursor:"pointer"}}>Copy</button>
+            </div>
           </div>
         )}
 
