@@ -1,5 +1,6 @@
 import { initiateUserControlledWalletsClient } from "@circle-fin/user-controlled-wallets";
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 
 const client = initiateUserControlledWalletsClient({
   apiKey: process.env.CIRCLE_API_KEY!,
@@ -19,12 +20,21 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "deviceId is required" }, { status: 400 });
         }
 
-        // 🟢 正しいメソッド名に修正（型エラーを解消）
-        const response = await client.createDeviceToken({
-          deviceId,
+        // 🟢 SDKの型定義不足を回避するため、確実な生の fetch を使用
+        const response = await fetch("https://api-sandbox.circle.com/v1/w3s/users/social/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.CIRCLE_API_KEY}`,
+          },
+          body: JSON.stringify({
+            idempotencyKey: crypto.randomUUID(),
+            deviceId,
+          }),
         });
-
-        return NextResponse.json(response.data);
+        
+        const data = await response.json();
+        return NextResponse.json(response.ok ? data.data : data, { status: response.ok ? 200 : response.status });
       }
 
       case "initializeUser": {
