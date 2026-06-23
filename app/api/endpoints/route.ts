@@ -7,6 +7,12 @@ const CIRCLE_APP_ID = process.env.NEXT_PUBLIC_CIRCLE_APP_ID as string;
 export async function POST(request: Request) {
   const body = await request.json();
   const { action, ...params } = body ?? {};
+  
+  // デバッグ: 環境変数の確認
+  console.log("=== Circle API Debug ===");
+  console.log("CIRCLE_API_KEY:", CIRCLE_API_KEY ? `${CIRCLE_API_KEY.slice(0,10)}...` : "MISSING");
+  console.log("CIRCLE_APP_ID:", CIRCLE_APP_ID ? `${CIRCLE_APP_ID.slice(0,8)}...` : "MISSING");
+  console.log("action:", action);
 
   switch (action) {
     case "createDeviceToken": {
@@ -21,6 +27,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), deviceId }),
       });
       const data = await response.json();
+      console.log("createDeviceToken response:", response.status, JSON.stringify(data));
       return NextResponse.json(response.ok ? data.data : data, { status: response.ok ? 200 : response.status });
     }
     case "initializeUser": {
