@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "deviceId is required" }, { status: 400 });
         }
 
-        // 🟢 SDKの型定義不足を回避するため、確実な生の fetch を使用
         const response = await fetch("https://api-sandbox.circle.com/v1/w3s/users/social/token", {
           method: "POST",
           headers: {
@@ -43,13 +42,23 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "userToken is required" }, { status: 400 });
         }
 
-        const response = await client.initializeUserControlledWallets({
-          userToken,
-          blockchains: ["ARC-TESTNET"],
-          accountType: "SCA"
+        // 🟢 SDKの型エラーを回避するため、ここも生の fetch で直接CircleのAPIを叩く
+        const response = await fetch("https://api-sandbox.circle.com/v1/w3s/user/initialize", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.CIRCLE_API_KEY}`,
+          },
+          body: JSON.stringify({
+            idempotencyKey: crypto.randomUUID(),
+            userToken,
+            blockchains: ["ARC-TESTNET"],
+            accountType: "SCA"
+          }),
         });
 
-        return NextResponse.json(response.data);
+        const data = await response.json();
+        return NextResponse.json(response.ok ? data.data : data, { status: response.ok ? 200 : response.status });
       }
 
       case "listWallets": {
@@ -58,6 +67,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "userToken is required" }, { status: 400 });
         }
 
+        // listWallets はさっきのチェックでSDK内に存在が確認できているのでこのままでOK
         const response = await client.listWallets({
           userToken,
         });
