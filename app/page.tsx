@@ -243,7 +243,8 @@ function StatusPill({ active }: { active: boolean }) {
 }
 
 export default function ArcPayroll() {
-  const [address,   setAddress]   = useState<`0x${string}`|null>(null);
+  const [address, setAddress] = useState<`0x${string}`|null>(null);
+  const [isCircleWallet, setIsCircleWallet] = useState(false);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
   const [hasDeployedContract, setHasDeployedContract] = useState(false);
   const [balance,   setBalance]   = useState<string|null>(null);
@@ -322,7 +323,7 @@ export default function ArcPayroll() {
   }, []);
 
   const disconnect = useCallback(() => {
-    setAddress(null); setBalance(null); setSchedules([]);
+    setAddress(null); setBalance(null); setSchedules([]); setIsCircleWallet(false);
   }, []);
 
   const fetchSchedules = useCallback(async () => {
@@ -482,6 +483,7 @@ export default function ArcPayroll() {
           <div style={{padding:"16px",background:"#070e18",borderBottom:"1px solid #a78bfa44"}}>
             <CircleGoogleLogin onConnected={(addr)=>{
               setAddress(addr as `0x${string}`);
+              setIsCircleWallet(true);
             }} />
           </div>
         )}
@@ -602,7 +604,7 @@ export default function ArcPayroll() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} isCircleWallet={isCircleWallet} ownerAddress={address||""} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
