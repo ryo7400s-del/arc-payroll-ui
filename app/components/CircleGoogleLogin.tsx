@@ -7,7 +7,7 @@ import { setCookie, getCookie } from "cookies-next";
 const APP_ID = process.env.NEXT_PUBLIC_CIRCLE_APP_ID!;
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
 
-type Props = { onConnected: (address: string) => void; };
+type Props = { onConnected: (address: string, userToken?: string) => void; };
 
 export default function CircleGoogleLogin({ onConnected }: Props) {
   const sdkRef = useRef<W3SSdk | null>(null);

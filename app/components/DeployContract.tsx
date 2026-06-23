@@ -19,10 +19,12 @@ export default function DeployContract({
   onDeployed,
   isCircleWallet = false,
   ownerAddress = "",
+  circleUserToken = "",
 }: {
   onDeployed?: (addr: string) => void;
   isCircleWallet?: boolean;
   ownerAddress?: string;
+  circleUserToken?: string;
 }) {
   const [status, setStatus] = useState<"idle"|"deploying"|"registering"|"done"|"error">("idle");
   const [result, setResult] = useState("");
@@ -58,24 +60,42 @@ export default function DeployContract({
   };
 
   const handleDeployCircle = async () => {
-    if (!ownerAddress) return alert("Circle Wallet not connected");
+    if (!ownerAddress || !circleUserToken) return alert("Circle Wallet not connected");
     setStatus("deploying");
     try {
-      // Circle User-Controlled WalletはサーバーサイドAPIで送金
+      // Step1: バックエンドでchallengeIdを発行
       const res = await fetch("/api/circle-deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ownerAddress,
+          userToken: circleUserToken,
           companyName: companyName || "My Company",
         }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+      if (!data.challengeId) throw new Error("challengeId取得失敗");
 
-      setResult(data.contractAddress);
-      setStatus("done");
-      onDeployed?.(data.contractAddress);
+      // Step2: Circle SDKでPIN入力画面を表示 → ユーザーが署名
+      const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+      const sdk = new W3SSdk();
+      sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+      sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: "" });
+
+      setStatus("PINを入力してください…");
+      sdk.execute(data.challengeId, async (err: any, result: any) => {
+        if (err) { setResult(err.message); setStatus("error"); return; }
+        // デプロイ完了後にコントラクトアドレスを取得
+        const contractAddr = result?.data?.contractAddress || result?.contractAddress;
+        if (contractAddr) {
+          setResult(contractAddr);
+          setStatus("done");
+          onDeployed?.(contractAddr);
+        } else {
+          setStatus("error");
+          setResult("コントラクトアドレスの取得に失敗");
+        }
+      });
     } catch(e: any) {
       setResult(e.message?.slice(0, 100));
       setStatus("error");
