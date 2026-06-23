@@ -84,6 +84,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
           body: JSON.stringify({ action: "initializeUser", userToken: loginResult.userToken }),
         });
         const initData = await initRes.json();
+        console.log("initializeUser response:", JSON.stringify(initData));
 
         if (initData.challengeId) {
           setStatus("PINを設定してください…");
@@ -110,6 +111,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       body: JSON.stringify({ action: "listWallets", userToken }),
     });
     const data = await res.json();
+    console.log("listWallets response:", JSON.stringify(data));
     const wallet = data.wallets?.find((w: any) => w.blockchain === "ARC-TESTNET");
     if (wallet?.address) {
       setStatus("✅ 接続完了！");
