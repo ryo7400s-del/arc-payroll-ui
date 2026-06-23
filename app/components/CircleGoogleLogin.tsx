@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 
-// 🟢 app/page.tsx から渡される引数の型を定義
 interface CircleGoogleLoginProps {
   onConnected?: (addr: any, token: any) => void;
 }
@@ -23,7 +22,11 @@ export default function CircleGoogleLogin({ onConnected }: CircleGoogleLoginProp
       });
       const tokenData = await tokenRes.json();
 
-      if (!tokenRes.ok) throw new Error(tokenData.error || "Failed to create device token");
+      if (!tokenRes.ok) {
+        // 🔍 CircleやNext.jsが返した「本当のエラー理由」を抽出
+        const errorDetail = tokenData.message || tokenData.error || JSON.stringify(tokenData);
+        throw new Error(errorDetail);
+      }
 
       // 2. Google OAuth 認証画面への手動リダイレクト
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
@@ -41,7 +44,8 @@ export default function CircleGoogleLogin({ onConnected }: CircleGoogleLoginProp
 
     } catch (err: any) {
       console.error("Authentication Flow Error:", err);
-      alert("エラーが発生しました: " + err.message);
+      // 📱 スマホの画面に生のエラー内容を強制表示
+      alert("❌ エラー詳細: " + err.message);
       setLoading(false);
     }
   };
