@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "deviceId is required" }, { status: 400 });
         }
 
-        const response = await client.createSocialLoginToken({
+        // 🟢 正しいメソッド名に修正（型エラーを解消）
+        const response = await client.createDeviceToken({
           deviceId,
         });
 
