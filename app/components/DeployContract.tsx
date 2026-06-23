@@ -26,7 +26,7 @@ export default function DeployContract({
   ownerAddress?: string;
   circleUserToken?: string;
 }) {
-  const [status, setStatus] = useState<"idle"|"deploying"|"registering"|"done"|"error">("idle");
+  const [status, setStatus] = useState<"idle"|"deploying"|"registering"|"pin"|"done"|"error">("idle");
   const [result, setResult] = useState("");
   const [companyName, setCompanyName] = useState("");
 
@@ -82,7 +82,7 @@ export default function DeployContract({
       sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
       sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: "" });
 
-      setStatus("PINを入力してください…");
+      setStatus("pin");
       sdk.execute(data.challengeId, async (err: any, result: any) => {
         if (err) { setResult(err.message); setStatus("error"); return; }
         // デプロイ完了後にコントラクトアドレスを取得
@@ -117,6 +117,7 @@ export default function DeployContract({
         {status==="deploying" ? <><span className="spinning">◌</span> Deploying…</>
         :status==="registering" ? <><span className="spinning">◌</span> Registering…</>
         :status==="done" ? "✓ Deployed & Registered!"
+        :status==="pin" ? <><span className="spinning">◌</span> PINを入力してください…</>
         :status==="error" ? "❌ Failed — retry"
         :"🚀 Deploy My Payroll Contract →"}
       </button>
