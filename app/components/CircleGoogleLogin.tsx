@@ -143,7 +143,9 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         body: JSON.stringify({ action: "createDeviceToken", deviceId }),
       });
       const tokenData = await tokenRes.json();
-      if (!tokenData.deviceToken) throw new Error("deviceToken取得失敗");
+      if (!tokenData.deviceToken) {
+        throw new Error(tokenData.message || `deviceToken取得失敗 (Status: ${tokenRes.status})`);
+      }
 
       setDeviceToken(tokenData.deviceToken);
       setDeviceEncKey(tokenData.deviceEncryptionKey);
