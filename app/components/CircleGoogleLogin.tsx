@@ -134,6 +134,29 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
   const handleLogin = async () => {
     if (!sdkRef.current || !deviceId) return;
     
+    // 📱 スマホ用：タップ時に環境変数を画面にポップアップ表示
+    const debugInfo = [
+      "=== Google Login Debug ===",
+      `NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}`,
+      `NEXT_PUBLIC_CIRCLE_APP_ID: ${process.env.NEXT_PUBLIC_CIRCLE_APP_ID}`,
+      `window.location.origin: ${typeof window !== "undefined" ? window.location.origin : "undefined"}`
+    ].join("\n");
+    
+    alert(debugInfo);
+
+    
+    // 📱 スマホ用デバッグ：環境変数を画面にポップアップ表示
+    const debugInfo = [
+      "=== Google Login Debug ===",
+      `NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}`,
+      `NEXT_PUBLIC_CIRCLE_APP_ID: ${process.env.NEXT_PUBLIC_CIRCLE_APP_ID}`,
+      `window.location.origin: ${typeof window !== "undefined" ? window.location.origin : "undefined"}`
+    ].join("
+");
+    
+    alert(debugInfo);
+
+    
     // 🟢 Googleリダイレクト直前の環境変数デバッグ
     console.log("=== Google Login Frontend Env Check ===");
     console.log("NEXT_PUBLIC_CIRCLE_APP_ID:", process.env.NEXT_PUBLIC_CIRCLE_APP_ID);
