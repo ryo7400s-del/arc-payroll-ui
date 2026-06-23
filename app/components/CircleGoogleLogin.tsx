@@ -124,7 +124,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
     const wallet = data.wallets?.find((w: any) => w.blockchain === "ARC-TESTNET");
     if (wallet?.address) {
       setStatus("✅ 接続完了！");
-      onConnected(wallet.address);
+      onConnected(wallet.address, userToken);
     } else {
       setError("ウォレットが見つかりません");
     }
