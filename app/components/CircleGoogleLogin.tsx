@@ -23,22 +23,19 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
       if (cancelled) return;
 
-      // ログイン完了コールバック（SDK公式準拠）
       const onLoginComplete = async (err: unknown, result: any) => {
         if (err) {
           const e = err as any;
+          console.error("Login error:", e);
           setError(e.message || "ログイン失敗");
           setLoading(false);
           return;
         }
-        console.log("Login result:", JSON.stringify(result));
+        console.log("Login success:", JSON.stringify(result));
         setStatus("ウォレット確認中…");
-
         try {
           const userToken = result?.userToken;
           if (!userToken) throw new Error("userToken取得失敗");
-
-          // ウォレット初期化（初回のみchallengeId発行）
           const initRes = await fetch("/api/endpoints", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -46,13 +43,9 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
           });
           const initData = await initRes.json();
           console.log("initializeUser:", JSON.stringify(initData));
-
           if (initData.challengeId) {
             setStatus("PINを設定してください…");
-            sdkRef.current!.setAuthentication({
-              userToken,
-              encryptionKey: result?.encryptionKey || "",
-            });
+            sdkRef.current!.setAuthentication({ userToken, encryptionKey: result?.encryptionKey || "" });
             sdkRef.current!.execute(initData.challengeId, async (err2: any) => {
               if (err2) { setError(err2.message); setLoading(false); return; }
               await fetchWallet(userToken);
@@ -66,25 +59,12 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         }
       };
 
-      // deviceTokenをバックエンドから取得
-      const deviceId = sdkRef.current
-        ? await (new W3SSdk({ appSettings: { appId: APP_ID }, loginConfigs: { deviceToken: "", deviceEncryptionKey: "" } })).getDeviceId()
-        : "temp-" + Math.random().toString(36).slice(2);
-
-      const tokenRes = await fetch("/api/endpoints", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "createDeviceToken", deviceId }),
-      });
-      const tokenData = await tokenRes.json();
-      const deviceToken = tokenData?.deviceToken || "";
-      const deviceEncryptionKey = tokenData?.deviceEncryptionKey || "";
-
+      // Step1: SDKを最小設定で初期化（deviceToken無しでOK）
       const sdk = new W3SSdk({
         appSettings: { appId: APP_ID },
         loginConfigs: {
-          deviceToken,
-          deviceEncryptionKey,
+          deviceToken: "",
+          deviceEncryptionKey: "",
           google: {
             clientId: GOOGLE_CLIENT_ID,
             redirectUri: typeof window !== "undefined" ? window.location.origin : "",
@@ -93,6 +73,38 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       }, onLoginComplete);
 
       sdkRef.current = sdk;
+
+      // Step2: SDKから正確なdeviceIdを取得
+      const deviceId = await sdk.getDeviceId();
+      console.log("deviceId:", deviceId);
+
+      // Step3: deviceIdでdeviceTokenを取得
+      const tokenRes = await fetch("/api/endpoints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "createDeviceToken", deviceId }),
+      });
+      const tokenData = await tokenRes.json();
+      console.log("deviceToken response:", JSON.stringify(tokenData));
+
+      if (tokenData?.deviceToken) {
+        // Step4: 取得したdeviceTokenでSDKを更新
+        sdk.updateConfigs({
+          appSettings: { appId: APP_ID },
+          loginConfigs: {
+            deviceToken: tokenData.deviceToken,
+            deviceEncryptionKey: tokenData.deviceEncryptionKey || "",
+            google: {
+              clientId: GOOGLE_CLIENT_ID,
+              redirectUri: typeof window !== "undefined" ? window.location.origin : "",
+            },
+          },
+        });
+        console.log("SDK updated with deviceToken");
+      } else {
+        console.error("deviceToken取得失敗:", tokenData);
+      }
+
       if (!cancelled) setSdkReady(true);
     })();
     return () => { cancelled = true; };
@@ -111,14 +123,14 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       setStatus("✅ 接続完了！");
       onConnected?.(wallet.address, userToken);
     } else {
-      setError("ウォレットが見つかりません: " + JSON.stringify(data));
+      setError("ウォレット未作成: " + JSON.stringify(data));
     }
     setLoading(false);
   };
 
   const handleLogin = async () => {
-    if (!sdkRef.current) return;
-    setLoading(true); setError(""); setStatus("Googleログイン中…");
+    if (!sdkRef.current || !sdkReady) return;
+    setLoading(true); setError(""); setStatus("Googleにリダイレクト中…");
     try {
       await sdkRef.current.performLogin(SocialLoginProvider.GOOGLE);
     } catch(e: any) {
