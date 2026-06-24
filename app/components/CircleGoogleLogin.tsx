@@ -16,153 +16,200 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    console.log(msg);
+    setDebugLogs(prev => [...prev.slice(-15), msg]);
+  };
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
-      const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
-      if (cancelled) return;
+      try {
+        const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+        if (cancelled) return;
 
-      // ログイン完了コールバック
-      const onLoginComplete = async (err: unknown, result: any) => {
-        if (err) {
-          const e = err as any;
-          console.error("Login error:", JSON.stringify(e));
-          setError(e.message || "ログイン失敗");
-          setLoading(false);
-          return;
-        }
-        console.log("Login result:", JSON.stringify(result));
+        addLog("SDK import completed");
 
-        try {
-          // Googleログイン後にidTokenとdeviceIdを取得してdeviceTokenを取得
-          const idToken = result?.idToken || result?.oAuthInfo?.idToken;
-          const deviceId = await sdkRef.current!.getDeviceId();
-          console.log("idToken:", idToken ? idToken.slice(0,20)+"..." : "MISSING");
-          console.log("deviceId:", deviceId);
-
-          setStatus("deviceToken取得中…");
-          const tokenRes = await fetch("/api/endpoints", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "createDeviceToken", deviceId, idToken }),
-          });
-          const tokenData = await tokenRes.json();
-          console.log("deviceToken:", JSON.stringify(tokenData));
-
-          if (!tokenData?.deviceToken) {
-            throw new Error(tokenData?.error || "deviceToken取得失敗");
+        const onLoginComplete = async (err: unknown, result: any) => {
+          if (err) {
+            const e = err as any;
+            const errMsg = e?.message || JSON.stringify(e);
+            addLog(`Login Error: ${errMsg}`);
+            setError(`ログイン失敗: ${errMsg}`);
+            setLoading(false);
+            return;
           }
 
-          // SDKにdeviceTokenを反映
-          sdkRef.current!.updateConfigs({
-            appSettings: { appId: APP_ID },
-            loginConfigs: {
-              deviceToken: tokenData.deviceToken,
-              deviceEncryptionKey: tokenData.deviceEncryptionKey || "",
-              google: {
-                clientId: GOOGLE_CLIENT_ID,
-                redirectUri: window.location.origin,
-              },
-            },
-          });
+          addLog("Googleログイン成功");
+          console.log("Full Login Result:", result);
 
-          const userToken = result?.userToken || tokenData?.userToken;
-          const encryptionKey = result?.encryptionKey || tokenData?.encryptionKey || "";
+          try {
+            const idToken = result?.idToken || result?.oAuthInfo?.idToken;
+            if (!idToken) throw new Error("idTokenが見つかりません");
 
-          if (!userToken) throw new Error("userToken取得失敗: " + JSON.stringify(result));
+            const deviceId = await sdkRef.current!.getDeviceId();
+            addLog(`deviceId: ${deviceId}`);
 
-          sdkRef.current!.setAuthentication({ userToken, encryptionKey });
-
-          // ウォレット初期化
-          setStatus("ウォレット初期化中…");
-          const initRes = await fetch("/api/endpoints", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "initializeUser", userToken }),
-          });
-          const initData = await initRes.json();
-          console.log("initializeUser:", JSON.stringify(initData));
-
-          if (initData.challengeId) {
-            setStatus("PINを設定してください…");
-            sdkRef.current!.execute(initData.challengeId, async (err2: any) => {
-              if (err2) { setError(err2.message); setLoading(false); return; }
-              await fetchWallet(userToken);
+            setStatus("deviceToken取得中...");
+            const tokenRes = await fetch("/api/endpoints", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "createDeviceToken", deviceId, idToken }),
             });
-          } else {
-            await fetchWallet(userToken);
+
+            const tokenData = await tokenRes.json();
+            addLog(`deviceToken Response: ${tokenRes.ok ? "OK" : "NG"}`);
+
+            if (!tokenRes.ok || !tokenData?.deviceToken) {
+              throw new Error(tokenData?.error || "deviceToken取得失敗");
+            }
+
+            sdkRef.current!.setAuthentication({
+              userToken: result.userToken,
+              encryptionKey: result.encryptionKey || "",
+            });
+
+            addLog("setAuthentication 完了");
+
+            setStatus("ウォレット初期化中...");
+            const initRes = await fetch("/api/endpoints", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "initializeUser", userToken: result.userToken }),
+            });
+
+            const initData = await initRes.json();
+
+            if (initData?.challengeId) {
+              addLog("PIN設定 Challenge開始");
+              sdkRef.current!.execute(initData.challengeId, async (err2: any) => {
+                if (err2) {
+                  setError(err2.message);
+                  setLoading(false);
+                  return;
+                }
+                await fetchWallet(result.userToken);
+              });
+            } else {
+              await fetchWallet(result.userToken);
+            }
+          } catch (e: any) {
+            const msg = e.message || "処理エラー";
+            addLog(`Post-login Error: ${msg}`);
+            setError(msg);
+            setLoading(false);
           }
-        } catch(e: any) {
-          console.error("Post-login error:", e);
-          setError(e.message);
-          setLoading(false);
-        }
-      };
+        };
 
-      // SDK初期化（deviceToken空でOK）
-      const sdk = new W3SSdk({
-        appSettings: { appId: APP_ID },
-        loginConfigs: {
-          deviceToken: "",
-          deviceEncryptionKey: "",
-          google: {
-            clientId: GOOGLE_CLIENT_ID,
-            redirectUri: typeof window !== "undefined" ? window.location.origin : "",
+        // SDK初期化
+        const sdk = new W3SSdk({
+          appSettings: { appId: APP_ID },
+          loginConfigs: {
+            google: {
+              clientId: GOOGLE_CLIENT_ID,
+              redirectUri: typeof window !== "undefined" ? window.location.origin : "",
+            },
           },
-        },
-      }, onLoginComplete);
+        }, onLoginComplete);
 
-      sdkRef.current = sdk;
-      if (!cancelled) setSdkReady(true);
+        sdkRef.current = sdk;
+        if (!cancelled) {
+          setSdkReady(true);
+          addLog("SDK Ready");
+        }
+      } catch (e: any) {
+        addLog(`SDK初期化エラー: ${e.message}`);
+      }
     })();
+
     return () => { cancelled = true; };
   }, []);
 
   const fetchWallet = async (userToken: string) => {
-    const res = await fetch("/api/endpoints", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "listWallets", userToken }),
-    });
-    const data = await res.json();
-    console.log("listWallets:", JSON.stringify(data));
-    const wallet = data?.wallets?.find((w: any) => w.blockchain === "ARC-TESTNET");
-    if (wallet?.address) {
-      setStatus("✅ 接続完了！");
-      onConnected?.(wallet.address, userToken);
-    } else {
-      setError("ウォレット未作成: " + JSON.stringify(data));
+    try {
+      const res = await fetch("/api/endpoints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "listWallets", userToken }),
+      });
+      const data = await res.json();
+      const wallet = data?.wallets?.find((w: any) => w.blockchain === "ARC-TESTNET");
+
+      if (wallet?.address) {
+        setStatus("✅ 接続完了！");
+        onConnected?.(wallet.address, userToken);
+      } else {
+        setError("ウォレットが見つかりません");
+      }
+    } catch (e: any) {
+      setError("ウォレット取得失敗: " + e.message);
     }
     setLoading(false);
   };
 
   const handleLogin = async () => {
-    if (!sdkRef.current || !sdkReady) return;
-    setLoading(true); setError(""); setStatus("Googleにリダイレクト中…");
+    if (!sdkRef.current || !sdkReady) {
+      setError("SDKが準備できていません");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setStatus("Googleにリダイレクト中...");
+    setDebugLogs([]); // ログリセット
+
     try {
       await sdkRef.current.performLogin(SocialLoginProvider.GOOGLE);
-    } catch(e: any) {
-      setError(e.message);
+    } catch (e: any) {
+      setError(e.message || "performLogin失敗");
       setLoading(false);
     }
   };
 
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      <div style={{fontSize:10,letterSpacing:".14em",color:"#3dd6f5",textTransform:"uppercase",marginBottom:4}}>
+    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ fontSize: 13, color: "#3dd6f5", fontWeight: "bold" }}>
         🌐 Circle Wallet（Googleログイン）
       </div>
-      <button className="submit-btn"
-        style={{background:"#ffffff10",border:"1px solid #3dd6f5",color:"#3dd6f5"}}
+
+      <button
         onClick={handleLogin}
-        disabled={!sdkReady||loading}
+        disabled={!sdkReady || loading}
+        style={{
+          padding: "14px 20px",
+          fontSize: "16px",
+          background: "#ffffff10",
+          border: "1px solid #3dd6f5",
+          color: "#3dd6f5",
+          borderRadius: "8px",
+        }}
       >
-        {loading ? <><span className="spinning">◌</span> {status || "処理中…"}</>
-        : "🔐 Googleでログイン →"}
+        {loading ? "処理中..." : "🔐 Googleでログイン"}
       </button>
-      {error && <div style={{fontSize:10,color:"#ff4d6d",wordBreak:"break-all"}}>{error}</div>}
-      {!loading && status && !error && <div style={{fontSize:10,color:"#00e5a0"}}>{status}</div>}
+
+      {status && <div style={{ color: "#00e5a0", fontSize: 14 }}>{status}</div>}
+      {error && <div style={{ color: "#ff4d6d", fontSize: 14, wordBreak: "break-all" }}>{error}</div>}
+
+      {/* デバッグログ */}
+      <div style={{
+        fontSize: "12px",
+        background: "#111",
+        color: "#bbb",
+        padding: "12px",
+        borderRadius: "8px",
+        maxHeight: "280px",
+        overflowY: "auto",
+        whiteSpace: "pre-wrap",
+        lineHeight: "1.4"
+      }}>
+        DEBUG LOG ({debugLogs.length})<br />
+        {debugLogs.length === 0 && "ログはここに表示されます..."}
+        {debugLogs.map((log, i) => (
+          <div key={i} style={{ marginTop: "4px" }}>• {log}</div>
+        ))}
+      </div>
     </div>
   );
 }
