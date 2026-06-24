@@ -1,3 +1,4 @@
+console.log("DEBUG: API_KEY is:", process.env.CIRCLE_API_KEY ? "Set" : "Not Set");
 import { initiateUserControlledWalletsClient } from "@circle-fin/user-controlled-wallets";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
