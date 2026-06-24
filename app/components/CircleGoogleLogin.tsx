@@ -36,82 +36,68 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         addLog("✅ SDK import completed");
 
         const onLoginComplete = async (err: unknown, result: any) => {
+          // ステップごとの状態をリセット
+          const stepStatus = {
+            sdkInitialization: true,
+            googleLogin: !!result,
+            idTokenExtracted: false,
+            deviceIdObtained: false,
+            backendDeviceTokenCreated: false,
+            authenticationSet: false,
+            initializeUserCompleted: false,
+            walletFetched: false,
+          };
+
+          addLog(`[診断開始] ログイン結果: ${stepStatus.googleLogin ? "成功" : "失敗"}`);
+
           if (err) {
-            // ========== 詳細なエラー分析 ==========
-            console.error("🔴 DEBUG ERROR OBJECT:", err);
             const e = err as any;
-
-            // エラーオブジェクトの全構造を出力
-            addLog(`❌ Error Type: ${typeof err}`);
-            addLog(`❌ Error Constructor: ${err?.constructor?.name}`);
-
-            const errMsg =
-              e?.message ||
-              (typeof e === "object" ? JSON.stringify(e, null, 2) : String(e));
-            addLog(`❌ SDK Login Error: ${errMsg}`);
-
-            // エラーコードがあれば出力
+            console.error("🔴 DEBUG ERROR OBJECT:", err);
+            
+            addLog(`❌ エラー発生: ${e?.message || JSON.stringify(err)}`);
             if (e?.code) {
-              addLog(`❌ Error Code: ${e.code}`);
+              addLog(`❌ エラーコード: ${e.code}`);
             }
 
-            // エラーの詳細プロパティを列挙
-            if (typeof e === "object" && e !== null) {
-              const keys = Object.keys(e);
-              if (keys.length > 0) {
-                addLog(`❌ Error Properties: ${keys.join(", ")}`);
-              }
-            }
-
-            setError(`ログイン失敗: ${errMsg}`);
+            setError(`ログイン失敗: ${e?.message || err}`);
             setLoading(false);
             return;
           }
 
-          // ========== ログイン成功後の処理 ==========
-          addLog("✅ Googleログイン成功 - result received");
-          addLog(`🔍 result type: ${typeof result}`);
-          addLog(`🔍 result keys: ${Object.keys(result || {}).join(", ")}`);
-          addLog(`🔍 result.oAuthInfo exists: ${!!result?.oAuthInfo}`);
-
-          if (result?.oAuthInfo) {
-            const oauthKeys = Object.keys(result.oAuthInfo).join(", ");
-            addLog(`🔍 result.oAuthInfo keys: ${oauthKeys}`);
-          }
-
           try {
             // ========== Step 1: idToken 抽出 ==========
-            const idToken =
-              result?.oAuthInfo?.idToken || result?.idToken || result?.accessToken;
-            if (!idToken) {
-              const debugInfo = JSON.stringify(
-                {
-                  hasOAuthInfo: !!result?.oAuthInfo,
-                  hasIdToken: !!result?.idToken,
-                  hasAccessToken: !!result?.accessToken,
-                  resultKeys: Object.keys(result || {}),
-                },
-                null,
-                2
-              );
-              throw new Error(
-                `idTokenが見つかりません。Debug: ${debugInfo}`
-              );
-            }
+            const idToken = result?.oAuthInfo?.idToken;
+            stepStatus.idTokenExtracted = !!idToken;
             addLog(
-              `✅ idToken extracted: ${idToken.substring(0, 20)}... (length: ${idToken.length})`
+              `🔍 Step 1 - idTokenの抽出: ${stepStatus.idTokenExtracted ? "✅ true" : "❌ failed"}`
             );
+
+            if (!stepStatus.idTokenExtracted) {
+              addLog(
+                `📋 result.oAuthInfo: ${JSON.stringify(result?.oAuthInfo || {})}`
+              );
+              throw new Error("idTokenが取得できませんでした");
+            }
 
             // ========== Step 2: deviceId 取得 ==========
             if (!sdkRef.current) {
               throw new Error("sdkRef.current is null");
             }
-            const deviceId = await sdkRef.current.getDeviceId();
-            addLog(`✅ deviceId obtained: ${deviceId}`);
 
-            // ========== Step 3: createDeviceToken (バックエンド) ==========
+            const deviceId = await sdkRef.current.getDeviceId();
+            stepStatus.deviceIdObtained = !!deviceId;
+            addLog(
+              `🔍 Step 2 - デバイスID取得: ${stepStatus.deviceIdObtained ? "✅ true" : "❌ failed"}`
+            );
+
+            if (!stepStatus.deviceIdObtained) {
+              throw new Error("deviceIdが取得できませんでした");
+            }
+
+            // ========== Step 3: バックエンド - createDeviceToken ==========
             setStatus("deviceToken取得中...");
-            addLog("📡 Calling /api/endpoints with createDeviceToken");
+            addLog("📡 Step 3 - バックエンド連携開始: createDeviceToken");
+
             const tokenRes = await fetch("/api/endpoints", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -123,59 +109,44 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
             });
 
             const tokenData = await tokenRes.json();
-            addLog(
-              `📡 createDeviceToken API: ${tokenRes.status} ${
-                tokenRes.ok ? "✅" : "❌"
-              }`
-            );
-            addLog(`📡 Response: ${JSON.stringify(tokenData)}`);
-
-            if (!tokenRes.ok) {
-              throw new Error(
-                tokenData?.error ||
-                  `createDeviceToken failed: ${tokenRes.statusText}`
-              );
-            }
-
-            if (!tokenData?.deviceToken) {
-              throw new Error(
-                `deviceToken not in response: ${JSON.stringify(tokenData)}`
-              );
-            }
+            stepStatus.backendDeviceTokenCreated = tokenRes.ok && !!tokenData?.deviceToken;
 
             addLog(
-              `✅ deviceToken received: ${tokenData.deviceToken.substring(0, 20)}...`
+              `🔍 Step 3 - デバイストークンAPI連携: ${
+                stepStatus.backendDeviceTokenCreated ? "✅ true" : "❌ failed"
+              } (Status: ${tokenRes.status})`
             );
+
+            if (!stepStatus.backendDeviceTokenCreated) {
+              addLog(`📋 API Response: ${JSON.stringify(tokenData)}`);
+              throw new Error(
+                tokenData?.error || `API failed with status ${tokenRes.status}`
+              );
+            }
 
             // ========== Step 4: setAuthentication ==========
             const userToken = result?.userToken;
-            const encryptionKey =
-              result?.encryptionKey || result?.oAuthInfo?.encryptionKey;
+            const encryptionKey = result?.encryptionKey || result?.oAuthInfo?.encryptionKey;
 
-            addLog(`🔑 userToken exists: ${!!userToken}`);
-            addLog(`🔑 encryptionKey exists: ${!!encryptionKey}`);
-
-            if (!userToken) {
-              addLog(
-                `⚠️  Warning: userToken is missing. result keys: ${Object.keys(result).join(", ")}`
-              );
-            }
-
-            if (!encryptionKey) {
-              addLog(
-                `⚠️  Warning: encryptionKey is empty or missing. result keys: ${Object.keys(result).join(", ")}`
-              );
-            }
+            addLog(`🔑 userToken: ${userToken ? "✅ exists" : "❌ missing"}`);
+            addLog(`🔑 encryptionKey: ${encryptionKey ? "✅ exists" : "❌ missing"}`);
 
             sdkRef.current.setAuthentication({
               userToken: userToken || "",
               encryptionKey: encryptionKey || "",
             });
-            addLog("✅ setAuthentication completed");
 
-            // ========== Step 5: initializeUser (バックエンド) ==========
+            stepStatus.authenticationSet = true;
+            addLog(
+              `🔍 Step 4 - 認証情報のセット: ${
+                stepStatus.authenticationSet ? "✅ true" : "❌ failed"
+              }`
+            );
+
+            // ========== Step 5: バックエンド - initializeUser ==========
             setStatus("ウォレット初期化中...");
-            addLog("📡 Calling /api/endpoints with initializeUser");
+            addLog("📡 Step 5 - バックエンド連携開始: initializeUser");
+
             const initRes = await fetch("/api/endpoints", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -186,18 +157,24 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
             });
 
             const initData = await initRes.json();
-            addLog(`📡 initializeUser API: ${initRes.status}`);
-            addLog(`📡 Response: ${JSON.stringify(initData)}`);
+            stepStatus.initializeUserCompleted = initRes.ok;
 
-            if (!initRes.ok) {
+            addLog(
+              `🔍 Step 5 - ウォレット初期化API連携: ${
+                stepStatus.initializeUserCompleted ? "✅ true" : "❌ failed"
+              } (Status: ${initRes.status})`
+            );
+
+            if (!stepStatus.initializeUserCompleted) {
+              addLog(`📋 API Response: ${JSON.stringify(initData)}`);
               throw new Error(
-                initData?.error || `initializeUser failed: ${initRes.statusText}`
+                initData?.error || `API failed with status ${initRes.status}`
               );
             }
 
             // ========== Step 6: PIN Challenge (if needed) ==========
             if (initData?.challengeId) {
-              addLog(`🔐 PIN Challenge started: ${initData.challengeId}`);
+              addLog(`🔐 PIN Challenge detected: ${initData.challengeId}`);
               sdkRef.current.execute(
                 initData.challengeId,
                 async (err2: any) => {
@@ -212,19 +189,24 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
                 }
               );
             } else {
-              addLog("ℹ️  No PIN Challenge required");
+              addLog("ℹ️  No PIN Challenge required - Proceeding to wallet fetch");
               await fetchWallet(userToken);
             }
           } catch (e: any) {
-            const msg = e.message || "Post-login processing error";
-            addLog(`❌ Post-login Error: ${msg}`);
-            setError(msg);
+            addLog(`❌ 診断終了 - 失敗箇所あり: ${e.message}`);
+            addLog(`📊 完了ステップ: ${Object.entries(stepStatus)
+              .filter(([, v]) => v)
+              .map(([k]) => k)
+              .join(", ") || "なし"}`);
+            setError(`プロセス停止: ${e.message}`);
             setLoading(false);
           }
         };
 
-        addLog(`📋 SDK Config - APP_ID: ${APP_ID?.substring(0, 10)}...`);
-        addLog(`📋 SDK Config - GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID?.substring(0, 10)}...`);
+        addLog(`📋 SDK Config - APP_ID: ${APP_ID?.substring(0, 15)}...`);
+        addLog(
+          `📋 SDK Config - GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID?.substring(0, 15)}...`
+        );
         addLog(`📋 SDK Config - redirectUri: https://arc-payroll-ui.vercel.app`);
 
         const sdk = new W3SSdk(
@@ -258,7 +240,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
 
   const fetchWallet = async (userToken: string) => {
     try {
-      addLog("🔍 Fetching wallets...");
+      addLog("🔍 Step 7 - ウォレット取得開始: listWallets");
       const res = await fetch("/api/endpoints", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,21 +248,24 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       });
 
       const data = await res.json();
-      addLog(`📡 listWallets API: ${res.status}`);
+      const success = res.ok && data?.wallets;
 
-      if (!res.ok) {
+      addLog(`🔍 Step 7 - ウォレット取得: ${success ? "✅ true" : "❌ failed"} (Status: ${res.status})`);
+
+      if (!success) {
         throw new Error(
-          data?.error || `listWallets failed: ${res.statusText}`
+          data?.error || `listWallets failed with status ${res.status}`
         );
       }
 
       const wallets = data?.wallets || [];
-      addLog(`✅ Found ${wallets.length} wallet(s)`);
+      addLog(`📋 取得ウォレット数: ${wallets.length}`);
 
       const wallet = wallets.find((w: any) => w.blockchain === "ARC-TESTNET");
 
       if (wallet?.address) {
         addLog(`✅ ARC-TESTNET wallet found: ${wallet.address}`);
+        addLog("🎉 全てのログイン工程が完了しました！");
         setStatus("✅ 接続完了！");
         onConnected?.(wallet.address, userToken);
       } else {
