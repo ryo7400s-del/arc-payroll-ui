@@ -16,9 +16,11 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case "createDeviceToken": {
-        const { deviceId, idToken } = params;
+        const { deviceId } = params;
         if (!deviceId) return NextResponse.json({ error: "deviceId required" }, { status: 400 });
 
+        // フロントエンドから idToken は受け取らない
+        // deviceId だけをCircle APIに送信
         const response = await fetch("https://api-sandbox.circle.com/v1/w3s/users/social/token", {
           method: "POST",
           headers: {
@@ -29,7 +31,6 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             idempotencyKey: crypto.randomUUID(),
             deviceId,
-            ...(idToken ? { idToken } : {}),
           }),
         });
         const data = await response.json();
