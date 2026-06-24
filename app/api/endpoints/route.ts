@@ -4,12 +4,18 @@ import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
-    // 🟢 .trim() をつけて、コピペ時に入り込んだ見えないスペースや改行を完全に消し去る
     const apiKey = process.env.CIRCLE_API_KEY?.trim();
+    const appId = process.env.NEXT_PUBLIC_CIRCLE_APP_ID?.trim() || process.env.CIRCLE_APP_ID?.trim();
     
     if (!apiKey) {
       return NextResponse.json({ 
         error: "❌ Vercelの環境変数に CIRCLE_API_KEY が設定されていません！" 
+      }, { status: 500 });
+    }
+
+    if (!appId) {
+      return NextResponse.json({ 
+        error: "❌ Vercelの環境変数に App ID（NEXT_PUBLIC_CIRCLE_APP_ID） が設定されていません！" 
       }, { status: 500 });
     }
 
@@ -30,6 +36,7 @@ export async function POST(req: NextRequest) {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
+            "X-App-Id": appId,
           },
           body: JSON.stringify({
             idempotencyKey: crypto.randomUUID(),
@@ -60,6 +67,7 @@ export async function POST(req: NextRequest) {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
+            "X-App-Id": appId,
           },
           body: JSON.stringify({
             idempotencyKey: crypto.randomUUID(),
@@ -82,7 +90,6 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "userToken is required" }, { status: 400 });
         }
 
-        // ⭕ Sandbox用のURLを明示的に指定して初期化するように修正
         const client = initiateUserControlledWalletsClient({
           apiKey: apiKey,
           baseUrl: "https://api-sandbox.circle.com/v1/w3s", 
