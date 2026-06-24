@@ -104,7 +104,6 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
           }
         };
 
-        // 修正: LoginConfigsの必須プロパティをすべて入れる
         const sdk = new W3SSdk({
           appSettings: { appId: APP_ID },
           loginConfigs: {
