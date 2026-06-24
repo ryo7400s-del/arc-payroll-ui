@@ -2,15 +2,11 @@ import { initiateUserControlledWalletsClient } from "@circle-fin/user-controlled
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
-const client = initiateUserControlledWalletsClient({
-  apiKey: process.env.CIRCLE_API_KEY || "dummy",
-});
-
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.CIRCLE_API_KEY;
+    // 🟢 .trim() をつけて、コピペ時に入り込んだ見えないスペースや改行を完全に消し去る
+    const apiKey = process.env.CIRCLE_API_KEY?.trim();
     
-    // 🔍 1. そもそも環境変数がVercelに登録されているかチェック
     if (!apiKey) {
       return NextResponse.json({ 
         error: "❌ Vercelの環境変数に CIRCLE_API_KEY が設定されていません！" 
@@ -43,9 +39,8 @@ export async function POST(req: NextRequest) {
         
         const data = await response.json();
         
-        // 🔍 2. エラーが起きたら、使用されたAPIキーのヒントを画面に返す
         if (!response.ok) {
-          const keyHint = apiKey.substring(0, 12);
+          const keyHint = apiKey.substring(0, 15);
           return NextResponse.json({ 
             error: `Circle API拒否: ${data.message || JSON.stringify(data)} (キーの先頭: ${keyHint}...)` 
           }, { status: response.status });
@@ -86,6 +81,11 @@ export async function POST(req: NextRequest) {
         if (!userToken) {
           return NextResponse.json({ error: "userToken is required" }, { status: 400 });
         }
+
+        // ここも安全のため trim 済みのキーでクライアントを初期化
+        const client = initiateUserControlledWalletsClient({
+          apiKey: apiKey,
+        });
 
         const response = await client.listWallets({
           userToken,
