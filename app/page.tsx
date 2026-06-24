@@ -458,16 +458,11 @@ export default function ArcPayroll() {
                 <button className="connect-btn" onClick={connect} disabled={connecting}>
                   {connecting?"Connecting…":"MetaMask"}
                 </button>
-                <button className="connect-btn" style={{background:"#1a0a2a",borderColor:"#a78bfa",color:"#a78bfa"}} onClick={()=>setShowCircleLogin(v=>!v)}>
-                  🔐 Google
-                </button>
-              </div>
             ) : (
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{textAlign:"right"}}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
                     <div style={{fontSize:11,color:"#3dd6f5",fontWeight:500}}>{shortAddr(address)}</div>
-                    <button onClick={()=>navigator.clipboard.writeText(address||"")} title={address||""} style={{background:"none",border:"1px solid #3dd6f5",color:"#3dd6f5",fontSize:9,padding:"2px 6px",borderRadius:3,cursor:"pointer"}}>Copy</button>
                   </div>
                   <div style={{fontSize:10,color:"#8ab4cc"}}>{balance??"-"} USDC</div>
                 </div>
