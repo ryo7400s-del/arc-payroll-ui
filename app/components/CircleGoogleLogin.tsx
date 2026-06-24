@@ -104,7 +104,6 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
           }
         };
 
-        // SDK初期化
         const sdk = new W3SSdk({
           appSettings: { appId: APP_ID },
           loginConfigs: {
@@ -158,7 +157,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
     setLoading(true);
     setError("");
     setStatus("Googleにリダイレクト中...");
-    setDebugLogs([]); // ログリセット
+    setDebugLogs([]);
 
     try {
       await sdkRef.current.performLogin(SocialLoginProvider.GOOGLE);
@@ -192,7 +191,6 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       {status && <div style={{ color: "#00e5a0", fontSize: 14 }}>{status}</div>}
       {error && <div style={{ color: "#ff4d6d", fontSize: 14, wordBreak: "break-all" }}>{error}</div>}
 
-      {/* デバッグログ */}
       <div style={{
         fontSize: "12px",
         background: "#111",
