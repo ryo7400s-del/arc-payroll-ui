@@ -20,7 +20,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
 
   const addLog = (msg: string) => {
     console.log(msg);
-    setDebugLogs(prev => [...prev.slice(-20), msg]);
+    setDebugLogs(prev => [...prev.slice(-25), msg]);
   };
 
   useEffect(() => {
@@ -37,18 +37,18 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
           if (err) {
             const e = err as any;
             const errMsg = e?.message || JSON.stringify(e);
-            addLog(`❌ Login Error: ${errMsg}`);
+            addLog(`❌ SDK Login Error: ${errMsg}`);
             setError(`ログイン失敗: ${errMsg}`);
             setLoading(false);
             return;
           }
 
-          addLog("✅ Googleログイン成功");
-          console.log("Full Login Result:", result);
+          addLog("✅ Googleログイン成功 - result received");
+          console.log("🔍 Full Login Result:", JSON.stringify(result, null, 2));
 
           try {
-            const idToken = result?.idToken || result?.oAuthInfo?.idToken;
-            addLog(`idToken length: ${idToken ? idToken.length : 0}`);
+            const idToken = result?.idToken || result?.oAuthInfo?.idToken || result?.accessToken;
+            addLog(`idToken exists: ${!!idToken}, length: ${idToken?.length || 0}`);
 
             if (!idToken) throw new Error("idTokenが見つかりません");
 
@@ -63,7 +63,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
             });
 
             const tokenData = await tokenRes.json();
-            addLog(`deviceToken Response: ${tokenRes.ok ? "OK" : "NG"}`);
+            addLog(`deviceToken API: ${tokenRes.status} ${tokenRes.ok ? "成功" : "失敗"}`);
 
             if (!tokenRes.ok || !tokenData?.deviceToken) {
               throw new Error(tokenData?.error || "deviceToken取得失敗");
@@ -74,7 +74,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
               encryptionKey: result.encryptionKey || "",
             });
 
-            addLog("setAuthentication 完了");
+            addLog("✅ setAuthentication 完了");
 
             setStatus("ウォレット初期化中...");
             const initRes = await fetch("/api/endpoints", {
@@ -88,12 +88,8 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
             if (initData?.challengeId) {
               addLog("PIN設定 Challenge開始");
               sdkRef.current!.execute(initData.challengeId, async (err2: any) => {
-                if (err2) {
-                  setError(err2.message);
-                  setLoading(false);
-                  return;
-                }
-                await fetchWallet(result.userToken);
+                if (err2) setError(err2.message);
+                else await fetchWallet(result.userToken);
               });
             } else {
               await fetchWallet(result.userToken);
@@ -119,12 +115,10 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         }, onLoginComplete);
 
         sdkRef.current = sdk;
-        if (!cancelled) {
-          setSdkReady(true);
-          addLog("SDK Ready");
-        }
+        setSdkReady(true);
+        addLog("✅ SDK Ready");
       } catch (e: any) {
-        addLog(`SDK初期化エラー: ${e.message}`);
+        addLog(`❌ SDK初期化エラー: ${e.message}`);
       }
     })();
 
@@ -148,21 +142,20 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         setError("ウォレットが見つかりません");
       }
     } catch (e: any) {
-      setError("ウォレット取得失敗: " + e.message);
+      setError("ウォレット取得失敗");
     }
     setLoading(false);
   };
 
   const handleLogin = async () => {
     if (!sdkRef.current || !sdkReady) {
-      setError("SDKが準備できていません");
+      setError("SDK準備中です...");
       return;
     }
     setLoading(true);
     setError("");
     setStatus("Googleにリダイレクト中...");
     setDebugLogs([]);
-
     try {
       await sdkRef.current.performLogin(SocialLoginProvider.GOOGLE);
     } catch (e: any) {
@@ -192,8 +185,8 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         {loading ? "処理中..." : "🔐 Googleでログイン"}
       </button>
 
-      {status && <div style={{ color: "#00e5a0", fontSize: 14 }}>{status}</div>}
-      {error && <div style={{ color: "#ff4d6d", fontSize: 14, wordBreak: "break-all" }}>{error}</div>}
+      {status && <div style={{ color: "#00e5a0" }}>{status}</div>}
+      {error && <div style={{ color: "#ff4d6d", wordBreak: "break-all" }}>{error}</div>}
 
       <div style={{
         fontSize: "12px",
@@ -201,7 +194,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         color: "#bbb",
         padding: "12px",
         borderRadius: "8px",
-        maxHeight: "320px",
+        maxHeight: "340px",
         overflowY: "auto",
         whiteSpace: "pre-wrap",
         lineHeight: "1.4"
