@@ -37,27 +37,70 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
 
         const onLoginComplete = async (err: unknown, result: any) => {
           if (err) {
+            // ========== 詳細なエラー分析 ==========
+            console.error("🔴 DEBUG ERROR OBJECT:", err);
             const e = err as any;
-            const errMsg = e?.message || JSON.stringify(e);
+
+            // エラーオブジェクトの全構造を出力
+            addLog(`❌ Error Type: ${typeof err}`);
+            addLog(`❌ Error Constructor: ${err?.constructor?.name}`);
+
+            const errMsg =
+              e?.message ||
+              (typeof e === "object" ? JSON.stringify(e, null, 2) : String(e));
             addLog(`❌ SDK Login Error: ${errMsg}`);
+
+            // エラーコードがあれば出力
+            if (e?.code) {
+              addLog(`❌ Error Code: ${e.code}`);
+            }
+
+            // エラーの詳細プロパティを列挙
+            if (typeof e === "object" && e !== null) {
+              const keys = Object.keys(e);
+              if (keys.length > 0) {
+                addLog(`❌ Error Properties: ${keys.join(", ")}`);
+              }
+            }
+
             setError(`ログイン失敗: ${errMsg}`);
             setLoading(false);
             return;
           }
 
+          // ========== ログイン成功後の処理 ==========
           addLog("✅ Googleログイン成功 - result received");
+          addLog(`🔍 result type: ${typeof result}`);
           addLog(`🔍 result keys: ${Object.keys(result || {}).join(", ")}`);
           addLog(`🔍 result.oAuthInfo exists: ${!!result?.oAuthInfo}`);
 
+          if (result?.oAuthInfo) {
+            const oauthKeys = Object.keys(result.oAuthInfo).join(", ");
+            addLog(`🔍 result.oAuthInfo keys: ${oauthKeys}`);
+          }
+
           try {
             // ========== Step 1: idToken 抽出 ==========
-            const idToken = result?.oAuthInfo?.idToken;
+            const idToken =
+              result?.oAuthInfo?.idToken || result?.idToken || result?.accessToken;
             if (!idToken) {
+              const debugInfo = JSON.stringify(
+                {
+                  hasOAuthInfo: !!result?.oAuthInfo,
+                  hasIdToken: !!result?.idToken,
+                  hasAccessToken: !!result?.accessToken,
+                  resultKeys: Object.keys(result || {}),
+                },
+                null,
+                2
+              );
               throw new Error(
-                `idTokenが見つかりません (result: ${JSON.stringify(result)})`
+                `idTokenが見つかりません。Debug: ${debugInfo}`
               );
             }
-            addLog(`✅ idToken extracted: ${idToken.substring(0, 20)}...`);
+            addLog(
+              `✅ idToken extracted: ${idToken.substring(0, 20)}... (length: ${idToken.length})`
+            );
 
             // ========== Step 2: deviceId 取得 ==========
             if (!sdkRef.current) {
@@ -68,6 +111,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
 
             // ========== Step 3: createDeviceToken (バックエンド) ==========
             setStatus("deviceToken取得中...");
+            addLog("📡 Calling /api/endpoints with createDeviceToken");
             const tokenRes = await fetch("/api/endpoints", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -84,6 +128,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
                 tokenRes.ok ? "✅" : "❌"
               }`
             );
+            addLog(`📡 Response: ${JSON.stringify(tokenData)}`);
 
             if (!tokenRes.ok) {
               throw new Error(
@@ -103,8 +148,19 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
             );
 
             // ========== Step 4: setAuthentication ==========
+            const userToken = result?.userToken;
             const encryptionKey =
-              result.encryptionKey || result?.oAuthInfo?.encryptionKey;
+              result?.encryptionKey || result?.oAuthInfo?.encryptionKey;
+
+            addLog(`🔑 userToken exists: ${!!userToken}`);
+            addLog(`🔑 encryptionKey exists: ${!!encryptionKey}`);
+
+            if (!userToken) {
+              addLog(
+                `⚠️  Warning: userToken is missing. result keys: ${Object.keys(result).join(", ")}`
+              );
+            }
+
             if (!encryptionKey) {
               addLog(
                 `⚠️  Warning: encryptionKey is empty or missing. result keys: ${Object.keys(result).join(", ")}`
@@ -112,24 +168,26 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
             }
 
             sdkRef.current.setAuthentication({
-              userToken: result.userToken,
+              userToken: userToken || "",
               encryptionKey: encryptionKey || "",
             });
             addLog("✅ setAuthentication completed");
 
             // ========== Step 5: initializeUser (バックエンド) ==========
             setStatus("ウォレット初期化中...");
+            addLog("📡 Calling /api/endpoints with initializeUser");
             const initRes = await fetch("/api/endpoints", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 action: "initializeUser",
-                userToken: result.userToken,
+                userToken,
               }),
             });
 
             const initData = await initRes.json();
             addLog(`📡 initializeUser API: ${initRes.status}`);
+            addLog(`📡 Response: ${JSON.stringify(initData)}`);
 
             if (!initRes.ok) {
               throw new Error(
@@ -149,13 +207,13 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
                     setLoading(false);
                   } else {
                     addLog("✅ PIN Challenge completed");
-                    await fetchWallet(result.userToken);
+                    await fetchWallet(userToken);
                   }
                 }
               );
             } else {
               addLog("ℹ️  No PIN Challenge required");
-              await fetchWallet(result.userToken);
+              await fetchWallet(userToken);
             }
           } catch (e: any) {
             const msg = e.message || "Post-login processing error";
@@ -164,6 +222,10 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
             setLoading(false);
           }
         };
+
+        addLog(`📋 SDK Config - APP_ID: ${APP_ID?.substring(0, 10)}...`);
+        addLog(`📋 SDK Config - GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID?.substring(0, 10)}...`);
+        addLog(`📋 SDK Config - redirectUri: https://arc-payroll-ui.vercel.app`);
 
         const sdk = new W3SSdk(
           {
