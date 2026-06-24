@@ -4,7 +4,6 @@ import WhitelistManager from "./components/WhitelistManager";
 import CsvWhitelist from "./components/CsvWhitelist";
 import SetupWizard from "./components/SetupWizard";
 import TxHistory from "./components/TxHistory";
-import CircleGoogleLogin from "./components/CircleGoogleLogin";
 import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
 import { useState, useEffect, useCallback } from "react";
@@ -244,13 +243,10 @@ function StatusPill({ active }: { active: boolean }) {
 
 export default function ArcPayroll() {
   const [address, setAddress] = useState<`0x${string}`|null>(null);
-  const [isCircleWallet, setIsCircleWallet] = useState(false);
-  const [circleUserToken, setCircleUserToken] = useState("");
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
   const [hasDeployedContract, setHasDeployedContract] = useState(false);
   const [balance,   setBalance]   = useState<string|null>(null);
   const [connecting,setConnecting]= useState(false);
-  const [showCircleLogin, setShowCircleLogin] = useState(false);
   const [activeTab, setActiveTab] = useState("schedule");
   const [scanLine,  setScanLine]  = useState(0);
   const [txState,   setTxState]   = useState<TxState>("idle");
@@ -324,7 +320,7 @@ export default function ArcPayroll() {
   }, []);
 
   const disconnect = useCallback(() => {
-    setAddress(null); setBalance(null); setSchedules([]); setIsCircleWallet(false);
+    setAddress(null); setBalance(null); setSchedules([]);
   }, []);
 
   const fetchSchedules = useCallback(async () => {
@@ -480,15 +476,7 @@ export default function ArcPayroll() {
             )}
           </div>
         </div>
-        {showCircleLogin && !address && (
-          <div style={{padding:"16px",background:"#070e18",borderBottom:"1px solid #a78bfa44"}}>
-            <CircleGoogleLogin onConnected={(addr, token)=>{
-              setAddress(addr as `0x${string}`);
-              setIsCircleWallet(true);
-              if (token) setCircleUserToken(token);
-            }} />
-          </div>
-        )}
+        
 
 
         <div style={{marginBottom:28,padding:"12px 18px",background:"linear-gradient(90deg,#071929,#091e30)",border:"1px solid #0f2235",borderRadius:5,display:"flex",alignItems:"center",gap:16}}>
@@ -606,7 +594,7 @@ export default function ArcPayroll() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} isCircleWallet={isCircleWallet} ownerAddress={address||""} circleUserToken={circleUserToken} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
