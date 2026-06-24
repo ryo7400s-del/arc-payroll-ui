@@ -82,9 +82,10 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "userToken is required" }, { status: 400 });
         }
 
-        // ここも安全のため trim 済みのキーでクライアントを初期化
+        // ⭕ Sandbox用のURLを明示的に指定して初期化するように修正
         const client = initiateUserControlledWalletsClient({
           apiKey: apiKey,
+          baseUrl: "https://api-sandbox.circle.com/v1/w3s", 
         });
 
         const response = await client.listWallets({
