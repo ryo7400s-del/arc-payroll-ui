@@ -6,6 +6,8 @@ import SetupWizard from "./components/SetupWizard";
 import TxHistory from "./components/TxHistory";
 import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
+import CircleLoginButton from "./components/CircleLoginButton";
+import { CircleWalletProvider } from "@/lib/circle/CircleWalletContext";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
 
@@ -395,6 +397,7 @@ export default function ArcPayroll() {
     return sum+base*mult;
   }, 0);
   return (
+    <CircleWalletProvider>
     <div style={{ minHeight:"100vh", background:"#080b10", fontFamily:"'DM Mono','Fira Mono',monospace", color:"#c8d6e5", position:"relative", overflow:"hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap');
@@ -453,6 +456,7 @@ export default function ArcPayroll() {
               <div style={{width:6,height:6,borderRadius:"50%",background:"#00e5a0",animation:"pulse 2s infinite"}}/>
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
+            <CircleLoginButton />
             {!address ? (
                 <button className="connect-btn" onClick={connect} disabled={connecting}>
                   {connecting?"Connecting…":"MetaMask"}
@@ -692,6 +696,7 @@ export default function ArcPayroll() {
         )}
 
       </div>
-    </div>
+   </div>
+    </CircleWalletProvider>
   );
 }
