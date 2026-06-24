@@ -20,7 +20,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
 
   const addLog = (msg: string) => {
     console.log(msg);
-    setDebugLogs(prev => [...prev.slice(-15), msg]);
+    setDebugLogs(prev => [...prev.slice(-20), msg]);
   };
 
   useEffect(() => {
@@ -37,17 +37,19 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
           if (err) {
             const e = err as any;
             const errMsg = e?.message || JSON.stringify(e);
-            addLog(`Login Error: ${errMsg}`);
+            addLog(`❌ Login Error: ${errMsg}`);
             setError(`ログイン失敗: ${errMsg}`);
             setLoading(false);
             return;
           }
 
-          addLog("Googleログイン成功");
+          addLog("✅ Googleログイン成功");
           console.log("Full Login Result:", result);
 
           try {
             const idToken = result?.idToken || result?.oAuthInfo?.idToken;
+            addLog(`idToken length: ${idToken ? idToken.length : 0}`);
+
             if (!idToken) throw new Error("idTokenが見つかりません");
 
             const deviceId = await sdkRef.current!.getDeviceId();
@@ -97,8 +99,8 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
               await fetchWallet(result.userToken);
             }
           } catch (e: any) {
-            const msg = e.message || "処理エラー";
-            addLog(`Post-login Error: ${msg}`);
+            const msg = e.message || "Post-login処理エラー";
+            addLog(`❌ Post-login Error: ${msg}`);
             setError(msg);
             setLoading(false);
           }
@@ -111,7 +113,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
             deviceEncryptionKey: "",
             google: {
               clientId: GOOGLE_CLIENT_ID,
-              redirectUri: typeof window !== "undefined" ? window.location.origin : "",
+              redirectUri: "https://arc-payroll-ui.vercel.app",
             },
           },
         }, onLoginComplete);
@@ -199,7 +201,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         color: "#bbb",
         padding: "12px",
         borderRadius: "8px",
-        maxHeight: "280px",
+        maxHeight: "320px",
         overflowY: "auto",
         whiteSpace: "pre-wrap",
         lineHeight: "1.4"
