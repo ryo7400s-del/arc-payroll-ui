@@ -11,11 +11,11 @@ interface Props {
 }
 
 export default function CircleGoogleLogin({ onConnected }: Props) {
+  const sdkRef = useRef<W3SSdk | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  const sdkRef = useRef<W3SSdk | null>(null);
 
   const addLog = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString("ja-JP");
@@ -27,6 +27,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
   const handleLogin = async () => {
     setLoading(true);
     setError("");
+    setStatus("デバイスを登録中...");
     setDebugLogs([]);
 
     try {
@@ -34,9 +35,8 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
 
       // ==========================================
-      // STEP 1: デバイスIDの取得 (Googleログイン画面を開く前！)
+      // STEP 1: デバイスIDの取得 (ログイン画面を開く前)
       // ==========================================
-      setStatus("デバイスを登録中...");
       addLog("🔍 デバイスIDを取得中...");
       const tempSdk = new W3SSdk({ appSettings: { appId: APP_ID } });
       const deviceId = await tempSdk.getDeviceId();
@@ -57,79 +57,76 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
         throw new Error(tokenData?.error || "deviceTokenの取得に失敗しました");
       }
       addLog(`✅ deviceToken 取得完了`);
-      addLog(`✅ deviceEncryptionKey 取得完了`);
 
       // ==========================================
-      // STEP 3: SDKにデバイストークンをセットして、Googleログイン！
+      // STEP 3: Google認証完了後のコールバック定義
       // ==========================================
-      setStatus("Google認証を開いています...");
-      addLog("🚀 Googleログイン画面を展開します");
-
       const onLoginComplete = async (err: unknown, result: any) => {
         if (err) {
           const e = err as any;
-          addLog(`❌ Googleログインエラー: ${e?.message || JSON.stringify(e)}`);
-          setError(`Google認証失敗: ${e?.message || JSON.stringify(e)}`);
+          addLog(`❌ SDKログインエラー: ${e?.message || JSON.stringify(e)}`);
+          setError(`ログイン失敗: ${e?.message || JSON.stringify(e)}`);
           setLoading(false);
           return;
         }
 
         try {
-          addLog("✅ Google認証完了！CircleからuserTokenを受け取りました");
+          addLog("✅ Googleログイン成功 - userTokenを受信しました");
+
+          // SDKへ認証セッションを固定
+          sdkRef.current!.setAuthentication({
+            userToken: result.userToken,
+            encryptionKey: result.encryptionKey || "",
+          });
+          addLog("✅ setAuthentication 完了");
 
           // ==========================================
-          // STEP 4: SDKへの認証情報のセット
+          // STEP 4: initializeUser (バックエンド経由でウォレット初期化)
           // ==========================================
-          const userToken = result.userToken;
-          const encryptionKey = result.encryptionKey;
-
-          if (!userToken) throw new Error("userTokenが含まれていません");
-
-          sdkRef.current!.setAuthentication({ userToken, encryptionKey });
-          addLog("✅ SDKにuserTokenをセットしました");
-
-          // ==========================================
-          // STEP 5: ウォレットの初期化 (initializeUser)
-          // ==========================================
-          setStatus("ウォレットを準備中...");
+          setStatus("ウォレット初期化中...");
           addLog("📡 バックエンドに initializeUser をリクエスト...");
           const initRes = await fetch("/api/endpoints", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "initializeUser", userToken }),
+            body: JSON.stringify({ action: "initializeUser", userToken: result.userToken }),
           });
           const initData = await initRes.json();
 
           if (!initRes.ok) throw new Error(initData?.error || "initializeUserに失敗しました");
-          addLog(`✅ initializeUser完了`);
+          addLog(`📡 initializeUser API: ${initRes.status} ✅`);
 
           // ==========================================
-          // STEP 6: 必要に応じてウォレット作成チャレンジの実行
+          // STEP 5: PIN チャレンジ処理 (新規ユーザーの場合のみ)
           // ==========================================
           if (initData?.challengeId) {
-            addLog(`🔐 ウォレット作成チャレンジを実行します: ${initData.challengeId}`);
+            addLog(`🔐 PIN チャレンジを開始します: ${initData.challengeId}`);
             sdkRef.current!.execute(initData.challengeId, async (err2: any) => {
               if (err2) {
-                addLog(`❌ チャレンジ失敗: ${err2.message}`);
-                setError(err2.message);
+                addLog(`❌ PIN チャレンジエラー: ${err2?.message}`);
+                setError(err2?.message || "PIN チャレンジに失敗しました");
                 setLoading(false);
               } else {
-                addLog("✅ チャレンジ成功！");
-                await fetchWallet(userToken);
+                addLog("✅ PIN チャレンジ完了");
+                await fetchWallet(result.userToken);
               }
             });
           } else {
-            addLog("ℹ️ チャレンジ不要（既存ユーザー）");
-            await fetchWallet(userToken);
+            addLog("ℹ️ PIN チャレンジ不要（既存ユーザー）");
+            await fetchWallet(result.userToken);
           }
-        } catch (postErr: any) {
-          addLog(`❌ ログイン後処理エラー: ${postErr.message}`);
-          setError(postErr.message);
+        } catch (e: any) {
+          addLog(`❌ ログイン後処理エラー: ${e.message}`);
+          setError(e.message);
           setLoading(false);
         }
       };
 
-      // デバイストークンを持たせた本番用SDKインスタンスの作成
+      // ==========================================
+      // STEP 6: 正しいトークンを乗せた本番SDKインスタンスの作成 & 実行
+      // ==========================================
+      setStatus("Googleにリダイレクト中...");
+      addLog("🚀 Googleログイン画面を展開します");
+
       const activeSdk = new W3SSdk(
         {
           appSettings: { appId: APP_ID },
@@ -146,8 +143,6 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       );
 
       sdkRef.current = activeSdk;
-
-      // SDK内部でGoogle認証を呼び出し
       await activeSdk.performLogin(SocialLoginProvider.GOOGLE);
     } catch (e: any) {
       addLog(`❌ プロセスエラー: ${e.message}`);
@@ -166,7 +161,7 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data?.error || "listWallets失敗");
+      if (!res.ok) throw new Error(data?.error || "listWalletsに失敗しました");
 
       const wallets = data?.wallets || [];
       const wallet = wallets.find((w: any) => w.blockchain === "ARC-TESTNET");
@@ -180,14 +175,14 @@ export default function CircleGoogleLogin({ onConnected }: Props) {
       }
     } catch (e: any) {
       addLog(`❌ fetchWallet エラー: ${e.message}`);
-      setError("ウォレット取得失敗");
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="notranslate" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ fontSize: 13, color: "#3dd6f5", fontWeight: "bold" }}>
         🌐 Circle Wallet（Googleログイン）
       </div>
