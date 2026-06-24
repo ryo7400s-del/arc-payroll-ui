@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case "createDeviceToken": {
-        const { deviceId } = params;
+        const { deviceId, idToken } = params;
         if (!deviceId) {
           return NextResponse.json({ error: "deviceId is required" }, { status: 400 });
         }
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             idempotencyKey: crypto.randomUUID(),
             deviceId,
+            idToken,
           }),
         });
         
