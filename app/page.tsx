@@ -454,7 +454,6 @@ export default function ArcPayroll() {
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
             {!address ? (
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <button className="connect-btn" onClick={connect} disabled={connecting}>
                   {connecting?"Connecting…":"MetaMask"}
                 </button>
