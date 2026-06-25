@@ -243,7 +243,7 @@ function StatusPill({ active }: { active: boolean }) {
   );
 }
 
-export default function ArcPayroll() {
+function ArcPayrollInner() {
   const { wallet, userToken, encryptionKey, isConnected: isCircleConnected } = useCircleWallet();
   const [address, setAddress] = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
@@ -398,7 +398,6 @@ export default function ArcPayroll() {
     return sum+base*mult;
   }, 0);
   return (
-    <CircleWalletProvider>
     <div style={{ minHeight:"100vh", background:"#080b10", fontFamily:"'DM Mono','Fira Mono',monospace", color:"#c8d6e5", position:"relative", overflow:"hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap');
@@ -698,6 +697,13 @@ export default function ArcPayroll() {
 
       </div>
    </div>
+  );
+}
+
+export default function ArcPayroll() {
+  return (
+    <CircleWalletProvider>
+      <ArcPayrollInner />
     </CircleWalletProvider>
   );
 }
