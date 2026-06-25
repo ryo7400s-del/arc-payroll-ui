@@ -25,6 +25,7 @@ export type CircleWallet = {
 export type CircleWalletState = {
   wallet: CircleWallet | null;
   userToken: string | null;
+  encryptionKey: string | null; // ← 追加: DeployContract の sdk.setAuthentication に必要
   isConnected: boolean;
   isLoading: boolean;
   error: string | null;
@@ -35,6 +36,7 @@ export type CircleWalletState = {
 const CircleWalletContext = createContext<CircleWalletState>({
   wallet: null,
   userToken: null,
+  encryptionKey: null, // ← 追加
   isConnected: false,
   isLoading: false,
   error: null,
@@ -209,7 +211,16 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
 
   return (
     <CircleWalletContext.Provider
-      value={{ wallet, userToken, isConnected: !!wallet, isLoading, error, login, logout }}
+      value={{
+        wallet,
+        userToken,
+        encryptionKey, // ← 追加: これがないと DeployContract で sdk.setAuthentication できない
+        isConnected: !!wallet,
+        isLoading,
+        error,
+        login,
+        logout,
+      }}
     >
       {children}
     </CircleWalletContext.Provider>
@@ -219,3 +230,4 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
 export function useCircleWallet() {
   return useContext(CircleWalletContext);
 }
+

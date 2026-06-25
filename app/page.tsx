@@ -7,7 +7,7 @@ import TxHistory from "./components/TxHistory";
 import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
 import CircleLoginButton from "./components/CircleLoginButton";
-import { CircleWalletProvider } from "@/lib/circle/CircleWalletContext";
+import { CircleWalletProvider, useCircleWallet } from "@/lib/circle/CircleWalletContext";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
 
@@ -244,6 +244,7 @@ function StatusPill({ active }: { active: boolean }) {
 }
 
 export default function ArcPayroll() {
+  const { wallet, userToken, encryptionKey, isConnected: isCircleConnected } = useCircleWallet();
   const [address, setAddress] = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
   const [hasDeployedContract, setHasDeployedContract] = useState(false);
@@ -592,7 +593,7 @@ export default function ArcPayroll() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} isCircleWallet={isCircleConnected} circleWalletId={wallet?.id || ""} circleWalletAddress={wallet?.address || ""} circleUserToken={userToken || ""} circleEncryptionKey={encryptionKey || ""} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
