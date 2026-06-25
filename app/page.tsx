@@ -598,7 +598,7 @@ function ArcPayrollInner() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} isCircleWallet={isCircleConnected} circleWalletId={wallet?.id || ""} circleWalletAddress={wallet?.address || ""} circleUserToken={userToken || ""} circleEncryptionKey={encryptionKey || ""} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} isCircleWallet={isCircleConnected} circleWalletId={wallet?.id || ""} circleWalletAddress={wallet?.address || ""} circleUserToken={userToken || ""} circleEncryptionKey={encryptionKey || ""} circleBlockchain={wallet?.blockchain || ""} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}

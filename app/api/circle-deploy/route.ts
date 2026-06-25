@@ -6,11 +6,11 @@ const RPC_URL = "https://rpc.testnet.arc.network";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userToken, walletId, walletAddress } = await req.json();
+    const { userToken, walletId, walletAddress, blockchain } = await req.json();
 
-    if (!userToken || !walletId || !walletAddress) {
+    if (!userToken || !walletId || !walletAddress || !blockchain) {
       return NextResponse.json(
-        { error: "userToken / walletId / walletAddress が必要です" },
+        { error: "userToken / walletId / walletAddress / blockchain が必要です" },
         { status: 400 }
       );
     }
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       userToken,
       walletId,
       rawTransaction: tx.unsignedSerialized,
+      blockchain,
     });
 
     return NextResponse.json({

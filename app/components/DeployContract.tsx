@@ -22,6 +22,7 @@ export default function DeployContract({
   circleWalletAddress = "",
   circleUserToken = "",
   circleEncryptionKey = "",
+  circleBlockchain = "",
 }: {
   onDeployed?: (addr: string) => void;
   isCircleWallet?: boolean;
@@ -29,6 +30,7 @@ export default function DeployContract({
   circleWalletAddress?: string;
   circleUserToken?: string;
   circleEncryptionKey?: string;
+  circleBlockchain?: string;
 }) {
   const [status, setStatus] = useState<"idle"|"deploying"|"registering"|"pin"|"done"|"error">("idle");
   const [result, setResult] = useState("");
@@ -79,6 +81,7 @@ export default function DeployContract({
           userToken: circleUserToken,        // 修正③: userToken を送る
           walletId: circleWalletId,          // 修正③: walletId を送る
           walletAddress: circleWalletAddress,
+          blockchain: circleBlockchain,
           companyName: companyName || "My Company",
         }),
       });
