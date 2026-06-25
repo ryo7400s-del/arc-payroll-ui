@@ -7,7 +7,6 @@ const RPC_URL = "https://rpc.testnet.arc.network";
 export async function POST(req: NextRequest) {
   try {
     const { userToken, walletId, walletAddress } = await req.json();
-    
 
     if (!userToken || !walletId || !walletAddress) {
       return NextResponse.json(
@@ -44,7 +43,6 @@ export async function POST(req: NextRequest) {
       userToken,
       walletId,
       rawTransaction: tx.unsignedSerialized,
-
     });
 
     return NextResponse.json({
