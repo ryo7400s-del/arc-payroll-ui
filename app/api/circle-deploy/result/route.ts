@@ -1,5 +1,5 @@
 // app/api/circle-deploy/result/route.ts
-import { initiateUserControlledWalletsClient, ChallengeStatusEnum } from "@circle-fin/user-controlled-wallets";
+import { initiateUserControlledWalletsClient } from "@circle-fin/user-controlled-wallets";
 import { ethers } from "ethers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -24,21 +24,20 @@ export async function POST(req: NextRequest) {
       apiKey: process.env.CIRCLE_API_KEY!,
     });
 
+    // チャレンジ完了まで polling（最大 60 秒）
     let signature: string | null = null;
 
     for (let i = 0; i < 30; i++) {
       const { data } = await client.getUserChallenge({ userToken, challengeId });
       const challenge = data!.challenge!;
+      const status = challenge.status as string;
 
-      if (challenge.status === ChallengeStatusEnum.Complete) {
+      if (status === "COMPLETED") {
         signature = (challenge as any).signature ?? null;
         break;
       }
-      if (
-        challenge.status === ChallengeStatusEnum.Failed ||
-        challenge.status === ChallengeStatusEnum.Expired
-      ) {
-        throw new Error(`チャレンジが ${challenge.status} になりました`);
+      if (status === "FAILED" || status === "EXPIRED") {
+        throw new Error(`チャレンジが ${status} になりました`);
       }
 
       await new Promise((r) => setTimeout(r, 2000));
@@ -48,6 +47,7 @@ export async function POST(req: NextRequest) {
       throw new Error("署名の取得がタイムアウトしました（60秒）");
     }
 
+    // Arc テストネットにブロードキャスト
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const txResponse = await provider.broadcastTransaction(signature);
     const receipt = await txResponse.wait();
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       throw new Error("レシートにコントラクトアドレスが含まれていません");
     }
 
+    // Registry に登録（バックエンドの専用ウォレットで代行）
     try {
       const devWallet = new ethers.Wallet(
         process.env.REGISTRY_SIGNER_PK!,
@@ -81,3 +82,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
