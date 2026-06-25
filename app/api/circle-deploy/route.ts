@@ -7,6 +7,7 @@ const RPC_URL = "https://rpc.testnet.arc.network";
 export async function POST(req: NextRequest) {
   try {
     const { userToken, walletId, walletAddress, blockchain } = await req.json();
+    console.log("[circle-deploy] blockchain:", blockchain);
 
     if (!userToken || !walletId || !walletAddress || !blockchain) {
       return NextResponse.json(
@@ -51,7 +52,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e: any) {
     console.error("[circle-deploy] ERROR:", e);
-    console.error("[circle-deploy] INPUT:", { userToken: userToken?.slice(0,10), walletId, walletAddress, blockchain });
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
