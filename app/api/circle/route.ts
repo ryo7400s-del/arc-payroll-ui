@@ -42,7 +42,7 @@ export async function POST(request: Request) {
           },
           body: JSON.stringify({
             idempotencyKey: crypto.randomUUID(),
-            accountType: "SCA",
+            accountType: "EOA",
             blockchains: ["ARC-TESTNET"],
           }),
         });
