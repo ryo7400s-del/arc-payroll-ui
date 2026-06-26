@@ -702,8 +702,6 @@ function ArcPayrollInner() {
 
 export default function ArcPayroll() {
   return (
-    <CircleWalletProvider>
       <ArcPayrollInner />
-    </CircleWalletProvider>
   );
 }
