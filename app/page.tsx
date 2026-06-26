@@ -6,8 +6,8 @@ import SetupWizard from "./components/SetupWizard";
 import TxHistory from "./components/TxHistory";
 import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
-import CircleLoginButton from "./components/CircleLoginButton";
-import { CircleWalletProvider, useCircleWallet } from "@/lib/circle/CircleWalletContext";
+import PrivyLoginButton from "./components/PrivyLoginButton";
+import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
 
@@ -244,7 +244,7 @@ function StatusPill({ active }: { active: boolean }) {
 }
 
 function ArcPayrollInner() {
-  const { wallet, userToken, encryptionKey, isConnected: isCircleConnected } = useCircleWallet();
+  const { isConnected: isPrivyConnected, address: privyAddress, getProvider: getPrivyProvider } = usePrivyWallet();
   const [address, setAddress] = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
   const [hasDeployedContract, setHasDeployedContract] = useState(false);
@@ -456,7 +456,7 @@ function ArcPayrollInner() {
               <div style={{width:6,height:6,borderRadius:"50%",background:"#00e5a0",animation:"pulse 2s infinite"}}/>
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
-            <CircleLoginButton />
+            <PrivyLoginButton />
             {isCircleConnected && wallet?.address && (
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 <div style={{fontSize:10,color:"#a78bfa",fontFamily:"monospace"}}>{wallet.address.slice(0,6)}...{wallet.address.slice(-4)}</div>
@@ -598,7 +598,7 @@ function ArcPayrollInner() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} isCircleWallet={isCircleConnected} circleWalletId={wallet?.id || ""} circleWalletAddress={wallet?.address || ""} circleUserToken={userToken || ""} circleEncryptionKey={encryptionKey || ""} circleBlockchain={wallet?.blockchain || ""} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} isPrivyWallet={isPrivyConnected} privyAddress={privyAddress || ""} getPrivyProvider={getPrivyProvider} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
