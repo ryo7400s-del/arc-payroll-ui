@@ -457,12 +457,6 @@ function ArcPayrollInner() {
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
             <PrivyLoginButton />
-            {isCircleConnected && wallet?.address && (
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{fontSize:10,color:"#a78bfa",fontFamily:"monospace"}}>{wallet.address.slice(0,6)}...{wallet.address.slice(-4)}</div>
-                <button onClick={()=>navigator.clipboard.writeText(wallet.address)} style={{background:"none",border:"1px solid #a78bfa",borderRadius:4,color:"#a78bfa",fontSize:9,padding:"2px 6px",cursor:"pointer"}}>Copy</button>
-              </div>
-            )}
             {!address ? (
                 <button className="connect-btn" onClick={connect} disabled={connecting}>
                   {connecting?"Connecting…":"MetaMask"}
