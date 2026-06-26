@@ -28,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           config={{
             loginMethods: ["google"],
             appearance: { theme: "dark" },
-            embeddedWallets: { createOnLogin: "all-users" },
+            embeddedWallets: { ethereum: { createOnLogin: "all-users" } },
             defaultChain: arcTestnet,
             supportedChains: [arcTestnet],
           }}
