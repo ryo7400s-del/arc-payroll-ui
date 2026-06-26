@@ -43,7 +43,7 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             idempotencyKey: crypto.randomUUID(),
             accountType: "EOA",
-            blockchains: ["ARC-TESTNET"],
+            blockchains: ["EVM-TESTNET"],
           }),
         });
         const data = await res.json();
