@@ -265,14 +265,20 @@ export default function ArcPayroll() {
     return ()=>clearInterval(t);
   }, []);
 
-  const getWalletClient = useCallback(() => {
-    if (typeof window === "undefined" || !(window as any).ethereum || !address) return null;
-    return createWalletClient({
-      account: address,
-      chain: arcTestnet,
-      transport: custom((window as any).ethereum),
-    });
-  }, [address, SCHEDULER]);
+  const getWalletClient = useCallback(async () => {
+    if (!address) return null;
+    if (isPrivyConnected && getPrivyProvider) {
+      const provider = await getPrivyProvider();
+      if (provider) {
+        const { BrowserProvider } = await import("ethers");
+        const ethersProvider = provider instanceof BrowserProvider ? provider : new BrowserProvider(provider as any);
+        const eip1193 = (ethersProvider as any).provider ?? (ethersProvider as any)._provider;
+        if (eip1193) return createWalletClient({ account: address as `0x${string}`, chain: arcTestnet, transport: custom(eip1193) });
+      }
+    }
+    if (typeof window === "undefined" || !(window as any).ethereum) return null;
+    return createWalletClient({ account: address, chain: arcTestnet, transport: custom((window as any).ethereum) });
+  }, [address, SCHEDULER, isPrivyConnected, getPrivyProvider]);
 
   const connect = useCallback(async () => {
     if (typeof window === "undefined" || !(window as any).ethereum) {
