@@ -266,7 +266,6 @@ export default function ArcPayroll() {
   }, []);
 
   const getWalletClient = useCallback(async () => {
-<<<<<<< HEAD
     if (!address) return null;
     if (isPrivyConnected && getPrivyProvider) {
       const provider = await getPrivyProvider();
@@ -280,15 +279,6 @@ export default function ArcPayroll() {
     if (typeof window === "undefined" || !(window as any).ethereum) return null;
     return createWalletClient({ account: address, chain: arcTestnet, transport: custom((window as any).ethereum) });
   }, [address, SCHEDULER, isPrivyConnected, getPrivyProvider]);
-=======
-    if (typeof window === "undefined" || !(window as any).ethereum || !address) return null;
-    return createWalletClient({
-      account: address,
-      chain: arcTestnet,
-      transport: custom((window as any).ethereum),
-    });
-  }, [address, SCHEDULER]);
->>>>>>> c016877 (fix: Privy wallet localStorage and contract restore)
 
   const connect = useCallback(async () => {
     if (typeof window === "undefined" || !(window as any).ethereum) {
