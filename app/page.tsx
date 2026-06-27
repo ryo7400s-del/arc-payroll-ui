@@ -266,6 +266,7 @@ export default function ArcPayroll() {
   }, []);
 
   const getWalletClient = useCallback(async () => {
+<<<<<<< HEAD
     if (!address) return null;
     if (isPrivyConnected && getPrivyProvider) {
       const provider = await getPrivyProvider();
@@ -279,6 +280,15 @@ export default function ArcPayroll() {
     if (typeof window === "undefined" || !(window as any).ethereum) return null;
     return createWalletClient({ account: address, chain: arcTestnet, transport: custom((window as any).ethereum) });
   }, [address, SCHEDULER, isPrivyConnected, getPrivyProvider]);
+=======
+    if (typeof window === "undefined" || !(window as any).ethereum || !address) return null;
+    return createWalletClient({
+      account: address,
+      chain: arcTestnet,
+      transport: custom((window as any).ethereum),
+    });
+  }, [address, SCHEDULER]);
+>>>>>>> c016877 (fix: Privy wallet localStorage and contract restore)
 
   const connect = useCallback(async () => {
     if (typeof window === "undefined" || !(window as any).ethereum) {
@@ -349,6 +359,14 @@ export default function ArcPayroll() {
   }, [address, SCHEDULER]);
 
   useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
+
+  // Privy ログイン時にコントラクトアドレスを復元
+  useEffect(() => {
+    if (isPrivyConnected && privyAddress) {
+      const saved = localStorage.getItem(`payroll_contract_${privyAddress}`);
+      if (saved) { setSCHEDULER(saved as `0x${string}`); setHasDeployedContract(true); }
+    }
+  }, [isPrivyConnected, privyAddress]);
 
   const handleCreate = useCallback(async () => {
     if (!address || !form.to || !form.amount) return;
@@ -594,7 +612,7 @@ export default function ArcPayroll() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }}  isPrivyWallet={isPrivyConnected} privyAddress={privyAddress || ""} getPrivyProvider={getPrivyProvider} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address || privyAddress}`, addr); setHasDeployedContract(true); }}  isPrivyWallet={isPrivyConnected} privyAddress={privyAddress || ""} getPrivyProvider={getPrivyProvider} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
@@ -609,7 +627,7 @@ export default function ArcPayroll() {
             <div className="card" style={{marginBottom:16}}>
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:8}}>Active Contract</div>
               <div style={{fontSize:10,color:"#3dd6f5",wordBreak:"break-all",marginBottom:8}}>{SCHEDULER}</div>
-              <input className="input-field" placeholder="0x... paste contract address to switch" onChange={e=>{ if(e.target.value.startsWith("0x")){ setSCHEDULER(e.target.value as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, e.target.value); }}}/>
+              <input className="input-field" placeholder="0x... paste contract address to switch" onChange={e=>{ if(e.target.value.startsWith("0x")){ setSCHEDULER(e.target.value as `0x${string}`); localStorage.setItem(`payroll_contract_${address || privyAddress}`, e.target.value); }}}/>
               <button className="submit-btn" style={{marginTop:8}} onClick={async()=>{ if(!address) return; const wc=createWalletClient({account:address,chain:arcTestnet,transport:custom((window as any).ethereum)}); const REGISTRY="0xc01c0113e353c6fc1be7d32a80e9688e1256b81f" as `0x${string}`; const REGISTRY_ABI=[{type:"function",name:"register",inputs:[{name:"scheduler",type:"address"},{name:"name",type:"string"}],outputs:[]}] as const; try{ const h=await wc.writeContract({address:REGISTRY,abi:REGISTRY_ABI,functionName:"register",args:[SCHEDULER,"Company"]}); await publicClient.waitForTransactionReceipt({hash:h}); alert("✅ Registered: "+SCHEDULER); }catch(e:any){alert("Failed: "+e.message);} }}>Register This Contract in Registry</button>
             </div>
             <div className="card" style={{marginTop:16}}>
@@ -621,8 +639,12 @@ export default function ArcPayroll() {
                 </div>
                 <button className="submit-btn" onClick={async()=>{
                   const addr=(document.getElementById("wl-input") as HTMLInputElement).value;
-                  if(!addr||!address) return;
-                  const wc=createWalletClient({account:address,chain:arcTestnet,transport:custom((window as any).ethereum)});
+                 if(!addr) return;
+const currentAddress = (address || privyAddress) as `0x${string}`;
+if(!currentAddress) return;
+const privProv = isPrivyConnected && getPrivyProvider ? await getPrivyProvider() : null;
+const eip1193 = privProv ? ((privProv as any).provider ?? (privProv as any)._provider) : (window as any).ethereum;
+const wc=createWalletClient({account:currentAddress,chain:arcTestnet,transport:custom(eip1193)});
                   try{
                     const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"addToWhitelist",args:[addr as `0x${string}`]});
                     await publicClient.waitForTransactionReceipt({hash:h});
