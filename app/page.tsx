@@ -456,8 +456,8 @@ export default function ArcPayroll() {
               <div style={{width:6,height:6,borderRadius:"50%",background:"#00e5a0",animation:"pulse 2s infinite"}}/>
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
+            <PrivyLoginButton />
             {!address ? (
-<PrivyLoginButton />
                             <button className="connect-btn" onClick={connect} disabled={connecting}>
                 {connecting?"Connecting…":"Connect Wallet"}
               </button>
