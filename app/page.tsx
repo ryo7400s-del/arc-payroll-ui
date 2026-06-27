@@ -6,8 +6,6 @@ import SetupWizard from "./components/SetupWizard";
 import TxHistory from "./components/TxHistory";
 import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
-import PrivyLoginButton from "./components/PrivyLoginButton";
-import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
 
@@ -243,9 +241,8 @@ function StatusPill({ active }: { active: boolean }) {
   );
 }
 
-function ArcPayrollInner() {
-  const { isConnected: isPrivyConnected, address: privyAddress, getProvider: getPrivyProvider } = usePrivyWallet();
-  const [address, setAddress] = useState<`0x${string}`|null>(null);
+export default function ArcPayroll() {
+  const [address,   setAddress]   = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
   const [hasDeployedContract, setHasDeployedContract] = useState(false);
   const [balance,   setBalance]   = useState<string|null>(null);
@@ -456,18 +453,14 @@ function ArcPayrollInner() {
               <div style={{width:6,height:6,borderRadius:"50%",background:"#00e5a0",animation:"pulse 2s infinite"}}/>
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
-            <PrivyLoginButton />
-            <div style={{fontSize:9,color:"#ff4d6d",wordBreak:"break-all"}}>SCHEDULER: {SCHEDULER}</div>
             {!address ? (
-                <button className="connect-btn" onClick={connect} disabled={connecting}>
-                  {connecting?"Connecting…":"MetaMask"}
-                </button>
+              <button className="connect-btn" onClick={connect} disabled={connecting}>
+                {connecting?"Connecting…":"Connect Wallet"}
+              </button>
             ) : (
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{textAlign:"right"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{fontSize:11,color:"#3dd6f5",fontWeight:500}}>{shortAddr(address)}</div>
-                  </div>
+                  <div style={{fontSize:11,color:"#3dd6f5",fontWeight:500}}>{shortAddr(address)}</div>
                   <div style={{fontSize:10,color:"#8ab4cc"}}>{balance??"-"} USDC</div>
                 </div>
                 <button className="disconnect-btn" onClick={disconnect}>✕</button>
@@ -475,8 +468,6 @@ function ArcPayrollInner() {
             )}
           </div>
         </div>
-        
-
 
         <div style={{marginBottom:28,padding:"12px 18px",background:"linear-gradient(90deg,#071929,#091e30)",border:"1px solid #0f2235",borderRadius:5,display:"flex",alignItems:"center",gap:16}}>
           <span style={{fontSize:11,color:"#3dd6f5"}}>⬡</span>
@@ -593,7 +584,7 @@ function ArcPayrollInner() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} isPrivyWallet={isPrivyConnected} privyAddress={privyAddress || ""} getPrivyProvider={getPrivyProvider} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
@@ -697,12 +688,6 @@ function ArcPayrollInner() {
         )}
 
       </div>
-   </div>
-  );
-}
-
-export default function ArcPayroll() {
-  return (
-      <ArcPayrollInner />
+    </div>
   );
 }
