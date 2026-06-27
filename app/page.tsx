@@ -632,7 +632,8 @@ export default function ArcPayroll() {
                  if(!addr) return;
 const currentAddress = (address || privyAddress) as `0x${string}`;
 if(!currentAddress) return;
-const privProv = isPrivyConnected && getPrivyProvider ? await getPrivyProvider() : null;
+                  const privProv = isPrivyConnected && getPrivyProvider ? await getPrivyProvider() : null;
+                  if (privProv) { try { await (privProv as any).send("wallet_switchEthereumChain", [{ chainId: "0x4CE6E2" }]); } catch(e){} }
 const eip1193 = privProv ? (privProv as any) : (window as any).ethereum;
 const wc=createWalletClient({account:currentAddress,chain:arcTestnet,transport:custom(eip1193)});
                   try{
