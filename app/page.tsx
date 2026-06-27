@@ -8,6 +8,7 @@ import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
 import PrivyLoginButton from "./components/PrivyLoginButton";
 import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
+import { useWallets } from "@privy-io/react-auth";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
 
@@ -245,6 +246,7 @@ function StatusPill({ active }: { active: boolean }) {
 
 export default function ArcPayroll() {
   const { isConnected: isPrivyConnected, address: privyAddress, getProvider: getPrivyProvider } = usePrivyWallet();
+  const { wallets } = useWallets();
   const [address,   setAddress]   = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
   const [hasDeployedContract, setHasDeployedContract] = useState(false);
@@ -629,14 +631,20 @@ export default function ArcPayroll() {
                 </div>
                 <button className="submit-btn" onClick={async()=>{
                   const addr=(document.getElementById("wl-input") as HTMLInputElement).value;
-                 if(!addr) return;
-const currentAddress = (address || privyAddress) as `0x${string}`;
-if(!currentAddress) return;
-                  const privProv = isPrivyConnected && getPrivyProvider ? await getPrivyProvider() : null;
-                  if (privProv) { try { await (privProv as any).send("wallet_switchEthereumChain", [{ chainId: "0x4CE6E2" }]); } catch(e){} }
-const eip1193 = privProv ? (privProv as any) : (window as any).ethereum;
-const wc=createWalletClient({account:currentAddress,chain:arcTestnet,transport:custom(eip1193)});
+                  if(!addr) return;
+                  const currentAddress = (address || privyAddress) as `0x${string}`;
+                  if(!currentAddress) return;
                   try{
+                    let wc;
+                    if (isPrivyConnected) {
+                      const embWallet = wallets.find(w => w.walletClientType === "privy");
+                      if (!embWallet) { alert("Privy wallet not found"); return; }
+                      await embWallet.switchChain(5042002);
+                      const provider = await embWallet.getEthereumProvider();
+                      wc = createWalletClient({account: currentAddress, chain: arcTestnet, transport: custom(provider)});
+                    } else {
+                      wc = createWalletClient({account: currentAddress, chain: arcTestnet, transport: custom((window as any).ethereum)});
+                    }
                     const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"addToWhitelist",args:[addr as `0x${string}`]});
                     await publicClient.waitForTransactionReceipt({hash:h});
                     alert("✅ Whitelisted! " + addr);
