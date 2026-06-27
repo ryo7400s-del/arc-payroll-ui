@@ -457,6 +457,7 @@ function ArcPayrollInner() {
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
             <PrivyLoginButton />
+            <div style={{fontSize:9,color:"#ff4d6d",wordBreak:"break-all"}}>SCHEDULER: {SCHEDULER}</div>
             {!address ? (
                 <button className="connect-btn" onClick={connect} disabled={connecting}>
                   {connecting?"Connecting…":"MetaMask"}
