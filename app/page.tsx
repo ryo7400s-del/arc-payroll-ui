@@ -634,6 +634,7 @@ const currentAddress = (address || privyAddress) as `0x${string}`;
 if(!currentAddress) return;
 const privProv = isPrivyConnected && getPrivyProvider ? await getPrivyProvider() : null;
 const eip1193 = privProv ? ((privProv as any).provider ?? (privProv as any)._provider) : (window as any).ethereum;
+alert("debug: addr="+addr+" currentAddress="+currentAddress+" eip1193="+(!!eip1193)+" privProv="+(!!privProv));
 const wc=createWalletClient({account:currentAddress,chain:arcTestnet,transport:custom(eip1193)});
                   try{
                     const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"addToWhitelist",args:[addr as `0x${string}`]});
