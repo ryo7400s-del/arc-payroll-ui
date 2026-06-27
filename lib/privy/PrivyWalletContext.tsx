@@ -24,8 +24,6 @@ const PrivyWalletContext = createContext<PrivyWalletState>({
 export function PrivyWalletProvider({ children }: { children: React.ReactNode }) {
   const { ready, authenticated, login, logout } = usePrivy();
   const { wallets } = useWallets();
-
-  // 埋め込みウォレット（Google ログインで自動作成される）
   const embeddedWallet = wallets.find(w => w.walletClientType === "privy");
   const address = embeddedWallet?.address ?? null;
 
@@ -52,4 +50,3 @@ export function PrivyWalletProvider({ children }: { children: React.ReactNode })
 export function usePrivyWallet() {
   return useContext(PrivyWalletContext);
 }
-

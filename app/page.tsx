@@ -6,6 +6,8 @@ import SetupWizard from "./components/SetupWizard";
 import TxHistory from "./components/TxHistory";
 import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
+import PrivyLoginButton from "./components/PrivyLoginButton";
+import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
 
@@ -242,6 +244,7 @@ function StatusPill({ active }: { active: boolean }) {
 }
 
 export default function ArcPayroll() {
+  const { isConnected: isPrivyConnected, address: privyAddress, getProvider: getPrivyProvider } = usePrivyWallet();
   const [address,   setAddress]   = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
   const [hasDeployedContract, setHasDeployedContract] = useState(false);
@@ -454,7 +457,8 @@ export default function ArcPayroll() {
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
             {!address ? (
-              <button className="connect-btn" onClick={connect} disabled={connecting}>
+<PrivyLoginButton />
+                            <button className="connect-btn" onClick={connect} disabled={connecting}>
                 {connecting?"Connecting…":"Connect Wallet"}
               </button>
             ) : (
@@ -584,7 +588,7 @@ export default function ArcPayroll() {
 
         {activeTab==="schedule" && (
           <div className="animate-in">
-            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }} />
+            <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address}`, addr); setHasDeployedContract(true); }}  isPrivyWallet={isPrivyConnected} privyAddress={privyAddress || ""} getPrivyProvider={getPrivyProvider} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
