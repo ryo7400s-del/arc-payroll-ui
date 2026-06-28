@@ -56,6 +56,7 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     let cancelled = false;
     const initSdk = async () => {
+        console.log("[Circle] initSdk start");
       try {
         const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
         const restoredDeviceToken = (getCookie("circle_deviceToken") as string) || "";
@@ -93,6 +94,7 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
 
         sdkRef.current = sdk;
         if (!cancelled) setSdkReady(true);
+        console.log("[Circle] sdkReady set to true");
       } catch (err) {
         console.error("Circle SDK init failed:", err);
       }
