@@ -55,16 +55,17 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
 
   const handleImport = async () => {
     if (!rows.length) return;
-    if (!isPrivyConnected && !(window as any).ethereum) return;
     setRunning(true);
-    let eip1193: any;
+    let wc;
     if (isPrivyConnected && getPrivyProvider) {
-      const prov = await getPrivyProvider();
-      eip1193 = prov;
+      const provider = await getPrivyProvider();
+      if (!provider) { setRunning(false); return; }
+      const eip1193 = await provider.getSigner().then((s: any) => s.provider).catch(() => provider);
+      wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom(eip1193) });
     } else {
-      eip1193 = (window as any).ethereum;
+      if (!(window as any).ethereum) { setRunning(false); return; }
+      wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
     }
-    const wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom(eip1193) });
 
     // 既登録チェック
     const toRegister: number[] = [];
