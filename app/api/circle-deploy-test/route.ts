@@ -1,52 +1,49 @@
-import { initiateUserControlledWalletsClient } from "@circle-fin/user-controlled-wallets";
-import { ethers } from "ethers";
 import { NextRequest, NextResponse } from "next/server";
 
-const RPC_URL = "https://rpc.testnet.arc.network";
+const BYTECODE = ""; // 後でDeployContract.tsxから取得
 
 export async function POST(req: NextRequest) {
   try {
     const { userToken, walletId, walletAddress, bytecode } = await req.json();
 
-    if (!userToken || !walletId || !walletAddress || !bytecode) {
+    if (!userToken || !walletId || !walletAddress) {
       return NextResponse.json({ error: "missing params" }, { status: 400 });
     }
 
-    const client = initiateUserControlledWalletsClient({
-      apiKey: process.env.CIRCLE_API_KEY!,
+    console.log("[circle-test] trying contractDeployment...");
+    console.log("[circle-test] walletId:", walletId);
+    console.log("[circle-test] walletAddress:", walletAddress);
+
+    const response = await fetch("https://api.circle.com/v1/w3s/user/transactions/contractDeployment", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.CIRCLE_API_KEY}`,
+        "Content-Type": "application/json",
+        "X-User-Token": userToken,
+      },
+      body: JSON.stringify({
+        idempotencyKey: crypto.randomUUID(),
+        walletId,
+        blockchain: "ARC-TESTNET",
+        bytecode: bytecode,
+        fee: {
+          type: "level",
+          architecture: "fee-market",
+          level: "MEDIUM"
+        }
+      }),
     });
 
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const [nonce, feeData] = await Promise.all([
-      provider.getTransactionCount(walletAddress),
-      provider.getFeeData(),
-    ]);
+    const data = await response.json();
+    console.log("[circle-test] response:", JSON.stringify(data));
 
-    // type 0 でも type 2 でも試せるよう両方用意
-    const tx = ethers.Transaction.from({
-      type: 2,
-      chainId: 5042002,
-      nonce,
-      maxFeePerGas: feeData.maxFeePerGas ?? ethers.parseUnits("2", "gwei"),
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? ethers.parseUnits("1", "gwei"),
-      gasLimit: 3_000_000n,
-      data: bytecode,
-      value: 0n,
-    });
-
-    console.log("[circle-test] wallet:", walletAddress);
-    console.log("[circle-test] nonce:", nonce);
-    console.log("[circle-test] chainId:", 5042002);
-    console.log("[circle-test] unsignedSerialized length:", tx.unsignedSerialized.length);
-
-    const { data: challengeData } = await client.signTransaction({
-      userToken,
-      walletId,
-      rawTransaction: tx.unsignedSerialized,
-    });
+    if (!response.ok) {
+      return NextResponse.json({ error: data.message || JSON.stringify(data) }, { status: response.status });
+    }
 
     return NextResponse.json({
-      challengeId: challengeData!.challengeId,
+      challengeId: data.data.challengeId,
+      txId: data.data.id,
     });
   } catch (e: any) {
     console.error("[circle-test] ERROR:", e);
