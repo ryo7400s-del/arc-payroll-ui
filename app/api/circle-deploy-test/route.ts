@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       });
       gasLimit = Number(estimated) + 150000;
     } catch (gasError) {
-      console.warn("[circle-test] Gas estimation failed, using default.", gasError);
+      console.warn("[circle-test] Gas estimation failed, using default.");
     }
 
     const tx = ethers.Transaction.from({
@@ -41,13 +41,11 @@ export async function POST(req: NextRequest) {
 
     const rawTx = tx.unsignedSerialized;
 
-    // 💡 重要: rawTransactionを使う際は、blockchainを明記してチェーンを教える
-    // これによりUI側が「これはArc用だ」と認識し、エラーを回避します
+    // 💡 修正済み: 唯一の識別子として walletId のみを送る
     const requestBody = {
       idempotencyKey: crypto.randomUUID(),
       walletId: walletId,
-      blockchain: "ARC-TESTNET", // ここで明示する
-      rawTransaction: rawTx, 
+      rawTransaction: rawTx,
     };
 
     const response = await fetch("https://api.circle.com/v1/w3s/user/sign/transaction", {
@@ -63,7 +61,8 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("[circle-test] API Error:", JSON.stringify(data));
+      // ログに何が起きたか詳細を残す
+      console.error("[circle-test] API Error Detail:", JSON.stringify(data));
       return NextResponse.json({ 
         error: data.message || "Failed to sign transaction", 
         details: data.errors 
