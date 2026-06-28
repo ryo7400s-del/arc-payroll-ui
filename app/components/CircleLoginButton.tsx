@@ -24,7 +24,7 @@ export default function CircleLoginButton() {
 
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-      <button className="connect-btn" onClick={login}>
+onClick={async () => { alert("login called"); await login(); }}
         <svg width="13" height="13" viewBox="0 0 18 18" style={{marginRight:5,verticalAlign:"middle"}}>
           <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908C16.658 14.013 17.64 11.705 17.64 9.2z"/>
           <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
