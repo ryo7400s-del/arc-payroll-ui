@@ -24,10 +24,12 @@ const MULTICALL3FROM_ABI = [{
 
 type Row = { label: string; address: string; status: "pending"|"success"|"skipped"|"error"; error?: string };
 
-export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClient }: {
+export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClient, getPrivyProvider, isPrivyConnected }: {
   ownerAddress: string;
   scheduler: `0x${string}`;
   abi: any;
+  getPrivyProvider?: () => Promise<any>;
+  isPrivyConnected?: boolean;
   publicClient: any;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
@@ -52,9 +54,17 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
   };
 
   const handleImport = async () => {
-    if (!rows.length || !(window as any).ethereum) return;
+    if (!rows.length) return;
+    if (!isPrivyConnected && !(window as any).ethereum) return;
     setRunning(true);
-    const wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
+    let eip1193: any;
+    if (isPrivyConnected && getPrivyProvider) {
+      const prov = await getPrivyProvider();
+      eip1193 = prov;
+    } else {
+      eip1193 = (window as any).ethereum;
+    }
+    const wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom(eip1193) });
 
     // 既登録チェック
     const toRegister: number[] = [];
