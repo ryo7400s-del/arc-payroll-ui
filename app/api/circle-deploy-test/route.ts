@@ -19,20 +19,23 @@ export async function POST(req: NextRequest) {
 
     let gasLimit = 4000000;
     try {
-      const estimated = await provider.estimateGas({ data: bytecode });
-      gasLimit = Number(estimated) + 100000;
+      const estimated = await provider.estimateGas({
+        from: walletAddress,
+        data: bytecode,
+      });
+      gasLimit = Number(estimated) + 150000;
     } catch (gasError) {
       console.warn("[circle-test] Gas estimation failed, using default.", gasError);
     }
 
     const txObject = {
-      nonce,
+      nonce: "0x" + nonce.toString(16),
       data: bytecode,
-      value: "0",
-      gas: gasLimit.toString(),
-      maxFeePerGas: (feeData.maxFeePerGas ?? 1000000000n).toString(),
-      maxPriorityFeePerGas: (feeData.maxPriorityFeePerGas ?? 1000000000n).toString(),
-      chainId: 5042002,
+      value: "0x0",
+      gasLimit: "0x" + gasLimit.toString(16),
+      maxFeePerGas: "0x" + BigInt(feeData.maxFeePerGas ?? 1000000000n).toString(16),
+      maxPriorityFeePerGas: "0x" + BigInt(feeData.maxPriorityFeePerGas ?? 1000000000n).toString(16),
+      chainId: "0x4CE6E2",
     };
 
     console.log("[circle-test] txObject:", JSON.stringify(txObject));
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         idempotencyKey: crypto.randomUUID(),
         walletId,
-        blockchain: "ARC",
+        blockchain: "ARC-TESTNET",
         transaction: JSON.stringify(txObject),
       }),
     });
