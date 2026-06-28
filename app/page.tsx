@@ -361,18 +361,22 @@ export default function ArcPayroll() {
   }, [isPrivyConnected, privyAddress]);
 
   const handleCreate = useCallback(async () => {
-    if (!address || !form.to || !form.amount) return;
+    if (!(address || privyAddress) || !form.to || !form.amount) return;
+    const currentAddress = (address || privyAddress) as `0x${string}`;
     setTxState("approving"); setTxError("");
     try {
       const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
       await addEmployeesBatch(
         [{ label: form.label||"Employee", to: form.to as `0x${string}`, amount: form.amount, interval: form.interval, firstExecution: fe, useEURC: form.useEURC }],
-        address, SCHEDULER, SCHEDULER_ABI, publicClient,
+        currentAddress, SCHEDULER, SCHEDULER_ABI, publicClient,
         (_i, status, error, hash) => {
           if (status === "scheduling") setTxState("creating");
           if (status === "done" && hash) setTxHash(hash);
           if (status === "error") throw new Error(error || "Failed");
-        }
+        },
+        getPrivyProvider,
+        wallets,
+        isPrivyConnected
       );
       setTxState("success");
       await fetchSchedules();

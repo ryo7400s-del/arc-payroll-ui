@@ -30,9 +30,23 @@ export async function addEmployeesBatch(
   scheduler: `0x${string}`,
   abi: any,
   publicClient: any,
-  onProgress?: ProgressCb
+  onProgress?: ProgressCb,
+  getPrivyProvider?: () => Promise<any>,
+  privyWallets?: any[],
+  isPrivyConnected?: boolean
 ) {
-  const wc = createWalletClient({ account: ownerAddress, chain: arcTestnet, transport: custom((window as any).ethereum) });
+  let wc;
+  if (isPrivyConnected && privyWallets) {
+    const embWallet = privyWallets.find((w: any) => w.walletClientType === "privy");
+    if (embWallet) {
+      await embWallet.switchChain(5042002);
+      const provider = await embWallet.getEthereumProvider();
+      wc = createWalletClient({ account: ownerAddress, chain: arcTestnet, transport: custom(provider) });
+    }
+  }
+  if (!wc) {
+    wc = createWalletClient({ account: ownerAddress, chain: arcTestnet, transport: custom((window as any).ethereum) });
+  }
 
   const allowance = await publicClient.readContract({
     address: USDC, abi: USDC_ABI, functionName: "allowance", args: [ownerAddress, scheduler],
