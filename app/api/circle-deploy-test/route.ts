@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       console.warn("[circle-test] Gas estimation failed, using default.", gasError);
     }
 
+    // 💡 修正ポイント1: chainIdを10進数の数値(5042002)に変更し、型(type: 2)を明記
     const txObject = {
       nonce: "0x" + nonce.toString(16),
       data: bytecode,
@@ -35,11 +36,20 @@ export async function POST(req: NextRequest) {
       gasLimit: "0x" + gasLimit.toString(16),
       maxFeePerGas: "0x" + BigInt(feeData.maxFeePerGas ?? 1000000000n).toString(16),
       maxPriorityFeePerGas: "0x" + BigInt(feeData.maxPriorityFeePerGas ?? 1000000000n).toString(16),
-      chainId: "0x4cef52",
+      chainId: 5042002, 
+      type: 2,
     };
 
-    console.log("[circle-test] txObject:", JSON.stringify(txObject));
+    console.log("[circle-test] txObject:", txObject);
 
+    // 💡 修正ポイント2: Circle APIの仕様に従い、blockchainを削除
+    const requestBody = {
+      idempotencyKey: crypto.randomUUID(),
+      walletId: walletId,
+      transaction: JSON.stringify(txObject),
+    };
+
+    // 💡 修正ポイント3: JSON.stringifyをここで1回だけ実行し、JSON崩れを防止
     const response = await fetch("https://api.circle.com/v1/w3s/user/sign/transaction", {
       method: "POST",
       headers: {
@@ -47,19 +57,18 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "X-User-Token": userToken,
       },
-      body: JSON.stringify({
-        idempotencyKey: crypto.randomUUID(),
-        walletId,
-        blockchain: "ETH",
-        transaction: JSON.stringify(txObject),
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const data = await response.json();
     console.log("[circle-test] response:", JSON.stringify(data));
 
     if (!response.ok) {
-      return NextResponse.json({ error: data.message || JSON.stringify(data) }, { status: response.status });
+      // エラー時のログを見やすく調整
+      return NextResponse.json({ 
+        error: data.message, 
+        details: data.errors || data 
+      }, { status: response.status });
     }
 
     return NextResponse.json({
