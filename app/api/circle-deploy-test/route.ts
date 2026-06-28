@@ -28,28 +28,31 @@ export async function POST(req: NextRequest) {
       console.warn("[circle-test] Gas estimation failed, using default.", gasError);
     }
 
-    // 💡 修正ポイント1: chainIdを10進数の数値(5042002)に変更し、型(type: 2)を明記
-    const txObject = {
-      nonce: "0x" + nonce.toString(16),
+    // 💡 修正ポイント1: ethers.Transaction.from を使ってオブジェクトを生成する
+    // ethers v6 の仕様に合わせ、数値系は BigInt (末尾にn) を使用して安定させます
+    const tx = ethers.Transaction.from({
+      nonce: nonce,
       data: bytecode,
-      value: "0x0",
-      gasLimit: "0x" + gasLimit.toString(16),
-      maxFeePerGas: "0x" + BigInt(feeData.maxFeePerGas ?? 1000000000n).toString(16),
-      maxPriorityFeePerGas: "0x" + BigInt(feeData.maxPriorityFeePerGas ?? 1000000000n).toString(16),
-      chainId: 5042002, 
+      value: 0n,
+      gasLimit: BigInt(gasLimit),
+      maxFeePerGas: feeData.maxFeePerGas ?? 1000000000n,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 1000000000n,
+      chainId: 5042002, // Arc TestnetのチェーンID
       type: 2,
-    };
+    });
 
-    console.log("[circle-test] txObject:", txObject);
+    // 💡 修正ポイント2: 未署名のRawトランザクション(0xから始まる16進数文字列)を取得
+    const rawTx = tx.unsignedSerialized;
+    console.log("[circle-test] rawTx:", rawTx);
 
-    // 💡 修正ポイント2: Circle APIの仕様に従い、blockchainを削除
+    // 💡 修正ポイント3: 'transaction' ではなく 'rawTransaction' を送る
+    // blockchain パラメータは含めない
     const requestBody = {
       idempotencyKey: crypto.randomUUID(),
       walletId: walletId,
-      transaction: JSON.stringify(txObject),
+      rawTransaction: rawTx, 
     };
 
-    // 💡 修正ポイント3: JSON.stringifyをここで1回だけ実行し、JSON崩れを防止
     const response = await fetch("https://api.circle.com/v1/w3s/user/sign/transaction", {
       method: "POST",
       headers: {
@@ -57,16 +60,15 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "X-User-Token": userToken,
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(requestBody), // ここで1回だけ文字列化する
     });
 
     const data = await response.json();
     console.log("[circle-test] response:", JSON.stringify(data));
 
     if (!response.ok) {
-      // エラー時のログを見やすく調整
       return NextResponse.json({ 
-        error: data.message, 
+        error: data.message || "Unknown error", 
         details: data.errors || data 
       }, { status: response.status });
     }
