@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       gasLimit: "0x" + gasLimit.toString(16),
       maxFeePerGas: "0x" + BigInt(feeData.maxFeePerGas ?? 1000000000n).toString(16),
       maxPriorityFeePerGas: "0x" + BigInt(feeData.maxPriorityFeePerGas ?? 1000000000n).toString(16),
-      chainId: "0x4CE6E2",
+      chainId: "0x4cef52",
     };
 
     console.log("[circle-test] txObject:", JSON.stringify(txObject));
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         idempotencyKey: crypto.randomUUID(),
         walletId,
-        blockchain: "ARC-TESTNET",
+        blockchain: "ETH",
         transaction: JSON.stringify(txObject),
       }),
     });
