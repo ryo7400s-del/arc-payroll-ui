@@ -335,17 +335,18 @@ export default function ArcPayroll() {
   }, []);
 
   const fetchSchedules = useCallback(async () => {
-    if (!address) return;
+    const currentAddr = address || privyAddress;
+    if (!currentAddr) return;
     try {
       const rows = await publicClient.readContract({
-        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getSchedules", args:[address],
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getSchedules", args:[currentAddr as `0x${string}`],
       }) as any[];
       setSchedules(rows);
       const rem = await publicClient.readContract({
-        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"weeklyRemaining", args:[address],
+        address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"weeklyRemaining", args:[currentAddr as `0x${string}`],
       }) as bigint;
       setWeeklyLeft((Number(rem)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2}));
-      const wl = await publicClient.readContract({ address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getWhitelist", args:[(address || privyAddress) as `0x${string}`] }) as any[];
+      const wl = await publicClient.readContract({ address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getWhitelist", args:[currentAddr as `0x${string}`] }) as any[];
       setWhitelistCount(wl.length);
     } catch(e) { console.error(e); }
   }, [address, SCHEDULER]);
