@@ -161,21 +161,21 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
 
   const login = useCallback(async () => {
     const sdk = sdkRef.current;
-    if (!sdk || !sdkReady) {
-      // sdkReady になるまで最大3秒待つ
-      for (let i = 0; i < 6; i++) {
-        await new Promise(r => setTimeout(r, 500));
-        if (sdkRef.current && sdkReady) break;
-      }
-      if (!sdkRef.current) {
-        setError("SDK の初期化に失敗しました。リロードしてください。");
-        return;
-      }
+    // sdkReady になるまで最大3秒待つ
+    let retries = 0;
+    while ((!sdkRef.current || !sdkReady) && retries < 6) {
+      await new Promise(r => setTimeout(r, 500));
+      retries++;
+    }
+    const sdkNow = sdkRef.current;
+    if (!sdkNow) {
+      setError("SDK の初期化に失敗しました。リロードしてください。");
+      return;
     }
     setError(null);
     setIsLoading(true);
     try {
-      const deviceId = await sdk.getDeviceId();
+      const deviceId = await sdkNow.getDeviceId();
       const tokenRes = await fetch("/api/circle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,7 +188,7 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
       setCookie("circle_deviceToken", deviceToken);
       setCookie("circle_deviceEncryptionKey", deviceEncryptionKey);
 
-      sdk.updateConfigs({
+      sdkNow.updateConfigs({
         appSettings: { appId },
         loginConfigs: {
           deviceToken,
@@ -201,7 +201,7 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
         },
       });
 
-      sdk.performLogin(SocialLoginProvider.GOOGLE);
+      sdkNow.performLogin(SocialLoginProvider.GOOGLE);
     } catch (err: any) {
       setError(err.message || "ログインに失敗しました");
       setIsLoading(false);
