@@ -522,13 +522,13 @@ export default function ArcPayroll() {
 
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Create Payment Schedule</div>
-              {!address && (
+              {!(address || privyAddress) && (
                 <div style={{padding:"28px 0",textAlign:"center"}}>
                   <div style={{color:"#8ab4cc",fontSize:12,marginBottom:14}}>Open in MetaMask browser and connect wallet</div>
                   <button className="connect-btn" onClick={connect} disabled={connecting}>{connecting?"Connecting…":"Connect Wallet"}</button>
                 </div>
               )}
-              {address && txState==="success" && (
+              {(address || privyAddress) && txState==="success" && (
                 <div className="success-pop" style={{padding:"32px 0",textAlign:"center"}}>
                   <div style={{fontSize:28,marginBottom:10,color:"#00e5a0"}}>✓</div>
                   <div style={{color:"#00e5a0",fontSize:12,letterSpacing:".1em"}}>Success</div>
@@ -536,13 +536,13 @@ export default function ArcPayroll() {
                   {txHash && <div style={{marginTop:10,fontSize:10}}><a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>View on ArcScan →</a></div>}
                 </div>
               )}
-              {address && txState==="error" && (
+              {(address || privyAddress) && txState==="error" && (
                 <div style={{padding:"20px 0",textAlign:"center"}}>
                   <div style={{color:"#ff4d6d",fontSize:12,marginBottom:6}}>Failed</div>
                   <div style={{color:"#8ab4cc",fontSize:11,maxWidth:400,margin:"0 auto",wordBreak:"break-all"}}>{txError}</div>
                 </div>
               )}
-              {address && !["success","error"].includes(txState) && (
+              {(address || privyAddress) && !["success","error"].includes(txState) && (
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                     <div>
@@ -673,8 +673,8 @@ export default function ArcPayroll() {
                 <button onClick={fetchSchedules} style={{marginLeft:12,background:"none",border:"1px solid #1a2a3a",color:"#3dd6f5",fontSize:9,padding:"2px 8px",borderRadius:3,cursor:"pointer"}}>↻ Refresh</button>
               </div>
               {!address && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
-              {address && schedules.length===0 && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
-              {address && schedules.length>0 && (
+              {(address || privyAddress) && schedules.length===0 && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
+              {(address || privyAddress) && schedules.length>0 && (
                 <>
                   <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 90px",gap:10,padding:"6px 14px",fontSize:10,color:"#8ab4cc",marginBottom:4}}>
                     <span>Recipient</span><span>Label</span><span>Amount</span><span>Interval</span><span>Status</span><span>Action</span>
