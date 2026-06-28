@@ -28,8 +28,6 @@ export async function POST(req: NextRequest) {
       console.warn("[circle-test] Gas estimation failed, using default.", gasError);
     }
 
-    // 💡 修正ポイント1: ethers.Transaction.from を使ってオブジェクトを生成する
-    // ethers v6 の仕様に合わせ、数値系は BigInt (末尾にn) を使用して安定させます
     const tx = ethers.Transaction.from({
       nonce: nonce,
       data: bytecode,
@@ -37,19 +35,18 @@ export async function POST(req: NextRequest) {
       gasLimit: BigInt(gasLimit),
       maxFeePerGas: feeData.maxFeePerGas ?? 1000000000n,
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 1000000000n,
-      chainId: 5042002, // Arc TestnetのチェーンID
+      chainId: 5042002, 
       type: 2,
     });
 
-    // 💡 修正ポイント2: 未署名のRawトランザクション(0xから始まる16進数文字列)を取得
     const rawTx = tx.unsignedSerialized;
-    console.log("[circle-test] rawTx:", rawTx);
 
-    // 💡 修正ポイント3: 'transaction' ではなく 'rawTransaction' を送る
-    // blockchain パラメータは含めない
+    // 💡 重要: rawTransactionを使う際は、blockchainを明記してチェーンを教える
+    // これによりUI側が「これはArc用だ」と認識し、エラーを回避します
     const requestBody = {
       idempotencyKey: crypto.randomUUID(),
       walletId: walletId,
+      blockchain: "ARC-TESTNET", // ここで明示する
       rawTransaction: rawTx, 
     };
 
@@ -60,16 +57,16 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "X-User-Token": userToken,
       },
-      body: JSON.stringify(requestBody), // ここで1回だけ文字列化する
+      body: JSON.stringify(requestBody),
     });
 
     const data = await response.json();
-    console.log("[circle-test] response:", JSON.stringify(data));
 
     if (!response.ok) {
+      console.error("[circle-test] API Error:", JSON.stringify(data));
       return NextResponse.json({ 
-        error: data.message || "Unknown error", 
-        details: data.errors || data 
+        error: data.message || "Failed to sign transaction", 
+        details: data.errors 
       }, { status: response.status });
     }
 
