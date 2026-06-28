@@ -24,12 +24,13 @@ const MULTICALL3FROM_ABI = [{
 
 type Row = { label: string; address: string; status: "pending"|"success"|"skipped"|"error"; error?: string };
 
-export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClient, getPrivyProvider, isPrivyConnected }: {
+export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClient, getPrivyProvider, isPrivyConnected, privyWallets }: {
   ownerAddress: string;
   scheduler: `0x${string}`;
   abi: any;
   getPrivyProvider?: () => Promise<any>;
   isPrivyConnected?: boolean;
+  privyWallets?: any[];
   publicClient: any;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
@@ -57,11 +58,12 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
     if (!rows.length) return;
     setRunning(true);
     let wc;
-    if (isPrivyConnected && getPrivyProvider) {
-      const provider = await getPrivyProvider();
-      if (!provider) { setRunning(false); return; }
-      const eip1193 = await provider.getSigner().then((s: any) => s.provider).catch(() => provider);
-      wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom(eip1193) });
+    if (isPrivyConnected && privyWallets) {
+      const embWallet = privyWallets.find((w: any) => w.walletClientType === "privy");
+      if (!embWallet) { alert("Privy wallet not found"); setRunning(false); return; }
+      await embWallet.switchChain(5042002);
+      const provider = await embWallet.getEthereumProvider();
+      wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom(provider) });
     } else {
       if (!(window as any).ethereum) { setRunning(false); return; }
       wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
