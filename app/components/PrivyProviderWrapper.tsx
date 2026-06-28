@@ -1,6 +1,7 @@
 "use client";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { PrivyWalletProvider } from "@/lib/privy/PrivyWalletContext";
+import { CircleWalletProvider } from "@/lib/circle/CircleWalletContext";
 
 const arcTestnet = {
   id: 5042002,
@@ -22,7 +23,9 @@ export default function PrivyProviderWrapper({ children }: { children: React.Rea
       }}
     >
       <PrivyWalletProvider>
-        {children}
+        <CircleWalletProvider>
+          {children}
+        </CircleWalletProvider>
       </PrivyWalletProvider>
     </PrivyProvider>
   );
