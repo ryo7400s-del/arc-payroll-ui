@@ -26,8 +26,11 @@ type Row = {
   status: "pending"|"success"|"error"; error?: string;
 };
 
-export default function CsvImport({ address, scheduler, abi }: {
+export default function CsvImport({ address, scheduler, abi, getPrivyProvider, privyWallets, isPrivyConnected }: {
   address: string; scheduler: `0x${string}`; abi: any;
+  getPrivyProvider?: () => Promise<any>;
+  privyWallets?: any[];
+  isPrivyConnected?: boolean;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
