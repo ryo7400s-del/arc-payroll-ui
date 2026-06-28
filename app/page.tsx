@@ -9,7 +9,6 @@ import DeployContract from "./components/DeployContract";
 import PrivyLoginButton from "./components/PrivyLoginButton";
 import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
 import CircleDeployTest from "./components/CircleDeployTest";
-import CircleDeployTest from "./components/CircleDeployTest";
 import { useWallets } from "@privy-io/react-auth";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
