@@ -9,6 +9,8 @@ import DeployContract from "./components/DeployContract";
 import PrivyLoginButton from "./components/PrivyLoginButton";
 import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
 import CircleDeployTest from "./components/CircleDeployTest";
+import CircleLoginButton from "./components/CircleLoginButton";
+import { useCircleWallet } from "@/lib/circle/CircleWalletContext";
 import { useWallets } from "@privy-io/react-auth";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
@@ -247,6 +249,7 @@ function StatusPill({ active }: { active: boolean }) {
 
 export default function ArcPayroll() {
   const { isConnected: isPrivyConnected, address: privyAddress, getProvider: getPrivyProvider } = usePrivyWallet();
+  const { isConnected: isCircleConnected } = useCircleWallet();
   const { wallets } = useWallets();
   const [address,   setAddress]   = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
@@ -479,6 +482,7 @@ export default function ArcPayroll() {
               <span style={{fontSize:10,color:"#00e5a0",letterSpacing:".1em"}}>ARC TESTNET · 5042002</span>
             </div>
             <PrivyLoginButton />
+            <CircleLoginButton />
             {!address ? (
                             <button className="connect-btn" onClick={connect} disabled={connecting}>
                 {connecting?"Connecting…":"Connect Wallet"}
