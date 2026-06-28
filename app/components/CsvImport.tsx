@@ -83,7 +83,18 @@ export default function CsvImport({ address, scheduler, abi }: {
     if (!rows.length || !(window as any).ethereum) return;
     setRunning(true);
     const pc = createPublicClient({ chain: arcTestnet, transport: http() });
-    const wc = createWalletClient({ account: address as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
+    let wc;
+    if (isPrivyConnected && privyWallets) {
+      const embWallet = privyWallets.find((w: any) => w.walletClientType === "privy");
+      if (embWallet) {
+        await embWallet.switchChain(5042002);
+        const provider = await embWallet.getEthereumProvider();
+        wc = createWalletClient({ account: address as `0x${string}`, chain: arcTestnet, transport: custom(provider) });
+      }
+    }
+    if (!wc) {
+      wc = createWalletClient({ account: address as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
+    }
 
     // Step1: Approve
     setPhase("Approving USDC…");
