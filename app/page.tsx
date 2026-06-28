@@ -345,7 +345,7 @@ export default function ArcPayroll() {
         address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"weeklyRemaining", args:[address],
       }) as bigint;
       setWeeklyLeft((Number(rem)/1_000_000).toLocaleString("en-US",{minimumFractionDigits:2}));
-      const wl = await publicClient.readContract({ address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getWhitelist", args:[address] }) as any[];
+      const wl = await publicClient.readContract({ address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getWhitelist", args:[(address || privyAddress) as `0x${string}`] }) as any[];
       setWhitelistCount(wl.length);
     } catch(e) { console.error(e); }
   }, [address, SCHEDULER]);
@@ -653,7 +653,7 @@ export default function ArcPayroll() {
               </div>
               <div className="card" style={{marginTop:16}}>
                 <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:12}}>Whitelist Members</div>
-                {address && <WhitelistManager address={address} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} />}
+                {(address || privyAddress) && <WhitelistManager address={(address || privyAddress) as string} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} />}
               </div>
             </div>
 
