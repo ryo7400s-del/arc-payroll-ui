@@ -162,8 +162,15 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
   const login = useCallback(async () => {
     const sdk = sdkRef.current;
     if (!sdk || !sdkReady) {
-      setError("SDK が準備できていません。少し待ってから再試行してください。");
-      return;
+      // sdkReady になるまで最大3秒待つ
+      for (let i = 0; i < 6; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        if (sdkRef.current && sdkReady) break;
+      }
+      if (!sdkRef.current) {
+        setError("SDK の初期化に失敗しました。リロードしてください。");
+        return;
+      }
     }
     setError(null);
     setIsLoading(true);
