@@ -8,6 +8,7 @@ import CsvImport from "./components/CsvImport";
 import DeployContract from "./components/DeployContract";
 import PrivyLoginButton from "./components/PrivyLoginButton";
 import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
+import CircleDeployTest from "./components/CircleDeployTest";
 import { useWallets } from "@privy-io/react-auth";
 import { useState, useEffect, useCallback } from "react";
 import { createWalletClient, createPublicClient, custom, http, parseUnits } from "viem";
@@ -610,6 +611,7 @@ export default function ArcPayroll() {
         {activeTab==="schedule" && (
           <div className="animate-in">
             <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address || privyAddress}`, addr); setHasDeployedContract(true); }}  isPrivyWallet={isPrivyConnected} privyAddress={privyAddress || ""} getPrivyProvider={getPrivyProvider} />
+            <CircleDeployTest />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
