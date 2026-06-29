@@ -123,7 +123,17 @@ export function CircleWalletProvider({ children }: { children: React.ReactNode }
         throw new Error(initData.message || "初期化に失敗しました");
       }
 
+      // ✅ alreadyInitialized → 既存ウォレット取得へ
+      if (initData.alreadyInitialized) {
+        await loadWallet(uToken);
+        return;
+      }
+
       const { challengeId } = initData;
+      if (!challengeId) {
+        await loadWallet(uToken);
+        return;
+      }
       sdk.setAuthentication({ userToken: uToken, encryptionKey: eKey });
 
       await new Promise<void>((resolve, reject) => {

@@ -21,10 +21,7 @@ export async function POST(request: Request) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${CIRCLE_API_KEY}`,
           },
-          body: JSON.stringify({
-            idempotencyKey: crypto.randomUUID(),
-            deviceId,
-          }),
+          body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), deviceId }),
         });
         const data = await res.json();
         if (!res.ok) return NextResponse.json(data, { status: res.status });
@@ -47,14 +44,11 @@ export async function POST(request: Request) {
           }),
         });
         const data = await res.json();
-
-        // ✅ 155106 = already initialized → エラーではなく正常続行
-        if (!res.ok && data.code !== 155106) {
-          return NextResponse.json(data, { status: res.status });
-        }
+        // ✅ 155106 = already initialized → 200で返す
         if (data.code === 155106) {
           return NextResponse.json({ alreadyInitialized: true }, { status: 200 });
         }
+        if (!res.ok) return NextResponse.json(data, { status: res.status });
         return NextResponse.json(data.data, { status: 200 });
       }
 
