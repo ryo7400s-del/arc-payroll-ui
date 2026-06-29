@@ -39,7 +39,7 @@ export default function CircleDeployTest() {
       // 💡 修正2: sandbox 環境を明示的に指定
       sdk.setAppSettings({ 
         appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID!,
-        environment: "sandbox" // 本番環境に移行する時は外すか "production" にする
+        // 本番環境に移行する時は外すか "production" にする
       });
       sdk.setAuthentication({ userToken, encryptionKey });
 
