@@ -43,12 +43,18 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             idempotencyKey: crypto.randomUUID(),
             accountType: "EOA",
-            // 💡 修正箇所: EVM-TESTNET を ARC-TESTNET に変更
             blockchains: ["ARC-TESTNET"],
           }),
         });
         const data = await res.json();
-        if (!res.ok) return NextResponse.json(data, { status: res.status });
+
+        // ✅ 155106 = already initialized → エラーではなく正常続行
+        if (!res.ok && data.code !== 155106) {
+          return NextResponse.json(data, { status: res.status });
+        }
+        if (data.code === 155106) {
+          return NextResponse.json({ alreadyInitialized: true }, { status: 200 });
+        }
         return NextResponse.json(data.data, { status: 200 });
       }
 

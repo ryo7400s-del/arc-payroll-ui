@@ -24,49 +24,48 @@ export async function POST(req: NextRequest) {
         data: bytecode,
       });
       gasLimit = Number(estimated) + 150000;
-    } catch (gasError) {
-      console.warn("[circle-test] Gas estimation failed, using default.");
+    } catch {
+      console.warn("[circle-deploy-test] Gas estimation failed, using default.");
     }
 
     const tx = ethers.Transaction.from({
-      nonce: nonce,
+      nonce,
+      to: null,           // ✅ null = コントラクトデプロイ
       data: bytecode,
       value: 0n,
       gasLimit: BigInt(gasLimit),
       maxFeePerGas: feeData.maxFeePerGas ?? 1000000000n,
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 1000000000n,
-      chainId: 5042002, 
+      chainId: 5042002,
       type: 2,
     });
 
     const rawTx = tx.unsignedSerialized;
 
-    // 💡 修正済み: 唯一の識別子として walletId のみを送る
-    const requestBody = {
-      idempotencyKey: crypto.randomUUID(),
-      walletId: walletId,
-      rawTransaction: rawTx,
-    };
-
-    const response = await fetch("https://api.circle.com/v1/w3s/user/sign/transaction", {
+    // ✅ 正しいエンドポイント: /user/transactions/raw
+    const response = await fetch("https://api.circle.com/v1/w3s/user/transactions/raw", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.CIRCLE_API_KEY}`,
+        Authorization: `Bearer ${process.env.CIRCLE_API_KEY}`,
         "Content-Type": "application/json",
         "X-User-Token": userToken,
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        idempotencyKey: crypto.randomUUID(),
+        walletId,
+        rawTransaction: rawTx,
+        feeLevel: "MEDIUM",
+      }),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      // ログに何が起きたか詳細を残す
-      console.error("[circle-test] API Error Detail:", JSON.stringify(data));
-      return NextResponse.json({ 
-        error: data.message || "Failed to sign transaction", 
-        details: data.errors 
-      }, { status: response.status });
+      console.error("[circle-deploy-test] API Error:", JSON.stringify(data));
+      return NextResponse.json(
+        { error: data.message || "Failed to create raw transaction", details: data },
+        { status: response.status }
+      );
     }
 
     return NextResponse.json({
@@ -74,7 +73,7 @@ export async function POST(req: NextRequest) {
       txId: data.data.id,
     });
   } catch (e: any) {
-    console.error("[circle-test] ERROR:", e);
+    console.error("[circle-deploy-test] ERROR:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
