@@ -15,7 +15,9 @@ export default function CircleDeployTest() {
       return;
     }
     setStatus("requesting challenge...");
+    
     try {
+      // APIルートへのパス（先ほど見せてくれたバックエンドと名前が一致しているか確認！）
       const res = await fetch("/api/circle-deploy-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -26,24 +28,35 @@ export default function CircleDeployTest() {
           bytecode: BYTECODE,
         }),
       });
+      
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (!res.ok || data.error) throw new Error(data.error || "APIリクエスト失敗");
 
       setStatus("executing challenge (PIN)...");
       const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
       const sdk = new W3SSdk();
-      sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+      
+      // 💡 修正2: sandbox 環境を明示的に指定
+      sdk.setAppSettings({ 
+        appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID!,
+        environment: "sandbox" // 本番環境に移行する時は外すか "production" にする
+      });
       sdk.setAuthentication({ userToken, encryptionKey });
 
-      sdk.execute(data.challengeId, (err: any) => {
+      // 💡 修正3: result も受け取るようにして、ログに出す
+      sdk.execute(data.challengeId, (err: any, executeResult: any) => {
         if (err) {
           setStatus("error: " + err.message);
           return;
         }
+        
+        console.log("🔥 Circle SDK Result:", executeResult);
         setStatus("✅ challenge completed!");
         setResult("Check Vercel logs for broadcast result");
       });
+      
     } catch (e: any) {
+      console.error(e);
       setStatus("❌ " + e.message);
     }
   };
