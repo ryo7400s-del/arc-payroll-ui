@@ -28,22 +28,20 @@ export async function POST(req: NextRequest) {
       console.warn("[deploy] gas estimation failed, using default");
     }
 
-    // ✅ toなし = コントラクトデプロイ
-    const tx = ethers.Transaction.from({
+    const maxFeePerGas = feeData.maxFeePerGas ?? 1000000000n;
+    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? 1000000000n;
+
+    // ✅ Circle "transaction" フィールドはJSON文字列。toはデプロイなので省略。
+    const txObject: Record<string, unknown> = {
       nonce,
-      to: null,
       data: bytecode,
-      value: 0n,
-      gasLimit,
-      maxFeePerGas: feeData.maxFeePerGas ?? 1000000000n,
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 1000000000n,
+      value: "0",
+      gas: gasLimit.toString(),
+      maxFeePerGas: maxFeePerGas.toString(),
+      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
       chainId: 5042002,
-      type: 2,
-    });
+    };
 
-    const rawTx = tx.unsignedSerialized;
-
-    // ✅ Circle には署名だけさせる
     const signRes = await fetch(
       "https://api.circle.com/v1/w3s/user/sign/transaction",
       {
@@ -56,7 +54,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           idempotencyKey: crypto.randomUUID(),
           walletId,
-          transaction: rawTx,
+          transaction: JSON.stringify(txObject), // ✅ JSON文字列化必須
         }),
       }
     );
@@ -79,11 +77,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ ethers.js で直接ARC-TESTNETにブロードキャスト
     const broadcastRes = await provider.broadcastTransaction(signedTx);
     console.log("[deploy] broadcast txHash:", broadcastRes.hash);
 
-    // デプロイ先アドレスを計算
     const contractAddress = ethers.getCreateAddress({
       from: walletAddress,
       nonce,
@@ -93,7 +89,6 @@ export async function POST(req: NextRequest) {
       txHash: broadcastRes.hash,
       contractAddress,
     });
-
   } catch (e: any) {
     console.error("[deploy] ERROR:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
