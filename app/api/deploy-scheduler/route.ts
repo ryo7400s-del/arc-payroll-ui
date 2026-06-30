@@ -8,9 +8,6 @@ const BYTECODE = "0x6080604052348015600e575f5ffd5b506127318061001c5f395ff3fe6080
 
 export async function POST(req: NextRequest) {
   try {
-    if (BYTECODE === "0x") {
-      return NextResponse.json({ error: "BYTECODEが未設定です" }, { status: 500 });
-    }
 
     const privateKey = process.env.DEPLOY_PRIVATE_KEY;
     if (!privateKey) {
