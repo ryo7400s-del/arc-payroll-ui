@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
           contractAddress: REGISTRY,
           abiFunctionSignature: "register(address,string)",
           abiParameters: [contractAddress, companyName || "My Company"],
-          blockchain: "ARC-TESTNET",
           feeLevel: "MEDIUM",
         }),
       }
