@@ -389,22 +389,46 @@ export default function ArcPayroll() {
   }, [isCircleConnected, circleWallet]);
 
   const handleCreate = useCallback(async () => {
-    if (!(address || privyAddress) || !form.to || !form.amount) return;
-    const currentAddress = (address || privyAddress) as `0x${string}`;
+    if (!(address || privyAddress || circleWallet?.address) || !form.to || !form.amount) return;
+    const currentAddress = (address || privyAddress || circleWallet?.address) as `0x${string}`;
     setTxState("approving"); setTxError("");
     try {
       const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
       await addEmployeesBatch(
         [{ label: form.label||"Employee", to: form.to as `0x${string}`, amount: form.amount, interval: form.interval, firstExecution: fe, useEURC: form.useEURC }],
         currentAddress, SCHEDULER, SCHEDULER_ABI, publicClient,
-        (_i, status, error, hash) => {
+        async (_i, status, error, hash) => {
           if (status === "scheduling") setTxState("creating");
-          if (status === "done" && hash) setTxHash(hash);
+          if (status === "done" && hash) {
+            // Circle の場合 hash = challengeId なので SDK で実行
+            if (isCircleConnected && circleUserToken && circleWallet?.id) {
+              const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+              const sdk = new W3SSdk();
+              sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+              const { encryptionKey: ek } = (await fetch("/api/circle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "createUserToken", userToken: circleUserToken }),
+              }).then(r => r.json()));
+              sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: ek || "" });
+              await new Promise<void>((resolve, reject) => {
+                sdk.execute(hash, (err: any) => {
+                  if (err) reject(err);
+                  else resolve();
+                });
+              });
+            } else {
+              setTxHash(hash);
+            }
+          }
           if (status === "error") throw new Error(error || "Failed");
         },
         getPrivyProvider,
         wallets,
-        isPrivyConnected
+        isPrivyConnected,
+        circleUserToken || undefined,
+        circleWallet?.id || undefined,
+        isCircleConnected
       );
       setTxState("success");
       await fetchSchedules();

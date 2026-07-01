@@ -33,8 +33,43 @@ export async function addEmployeesBatch(
   onProgress?: ProgressCb,
   getPrivyProvider?: () => Promise<any>,
   privyWallets?: any[],
-  isPrivyConnected?: boolean
+  isPrivyConnected?: boolean,
+  circleUserToken?: string,
+  circleWalletId?: string,
+  isCircleConnected?: boolean
 ) {
+  // Circle ウォレットの場合は contractExecution API を使う
+  if (isCircleConnected && circleUserToken && circleWalletId) {
+    for (let i = 0; i < employees.length; i++) {
+      const emp = employees[i];
+      try {
+        onProgress?.(i, "scheduling");
+        const fe = emp.firstExecution ?? 0n;
+        const res = await fetch("/api/circle-schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userToken: circleUserToken,
+            walletId: circleWalletId,
+            schedulerAddress: scheduler,
+            to: emp.to,
+            amount: emp.amount,
+            interval: emp.interval,
+            label: emp.label || "Employee",
+            firstExecution: fe.toString(),
+            useEURC: emp.useEURC ?? false,
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        onProgress?.(i, "done", undefined, data.challengeId);
+      } catch (e: any) {
+        onProgress?.(i, "error", e.message?.slice(0, 100));
+      }
+    }
+    return;
+  }
+
   let wc;
   if (isPrivyConnected && privyWallets) {
     const embWallet = privyWallets.find((w: any) => w.walletClientType === "privy");
