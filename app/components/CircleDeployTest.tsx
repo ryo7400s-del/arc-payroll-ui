@@ -61,11 +61,49 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
     }
   };
 
+  const [wlAddress, setWlAddress] = useState("");
+  const [wlStatus, setWlStatus] = useState("");
+
+  const handleWhitelist = async () => {
+    if (!wallet || !userToken || !encryptionKey) {
+      alert("Circle ウォレットが接続されていません");
+      return;
+    }
+    if (!wlAddress) { alert("アドレスを入力してください"); return; }
+    try {
+      setWlStatus("登録中...");
+      const res = await fetch("/api/circle-whitelist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userToken,
+          walletId: wallet.id,
+          schedulerAddress: result || "",
+          targetAddress: wlAddress,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+      const sdk = new W3SSdk();
+      sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+      sdk.setAuthentication({ userToken, encryptionKey });
+
+      sdk.execute(data.challengeId, (err: any) => {
+        if (err) { setWlStatus("❌ " + err.message); return; }
+        setWlStatus("✅ ホワイトリスト登録完了！");
+      });
+    } catch (e: any) {
+      setWlStatus("❌ " + e.message);
+    }
+  };
+
   if (!isConnected) return null;
 
   return (
     <div style={{ padding: 16, background: "#070e18", border: "1px solid #a78bfa", borderRadius: 8, marginTop: 16 }}>
-      <div style={{ fontSize: 10, color: "#a78bfa", marginBottom: 8 }}>🔬🔬🔬 TEST MARKER 12345 🔬🔬🔬</div>
+      <div style={{ fontSize: 10, color: "#a78bfa", marginBottom: 8 }}>🌐 Circle Wallet</div>
       <input
         className="input-field"
         placeholder="Company Name"
@@ -81,6 +119,16 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
       </button>
       {status && <div style={{ fontSize: 10, color: "#3dd6f5", marginTop: 8 }}>{status}</div>}
       {result && <div style={{ fontSize: 10, color: "#00e5a0", marginTop: 4, wordBreak: "break-all" }}>{result}</div>}
+      {result && (
+        <div style={{ marginTop: 12, borderTop: "1px solid #1a2a3a", paddingTop: 12 }}>
+          <div style={{ fontSize: 10, color: "#a78bfa", marginBottom: 6 }}>ホワイトリスト登録</div>
+          <input className="input-field" placeholder="0x..." value={wlAddress} onChange={e => setWlAddress(e.target.value)} style={{ marginBottom: 6 }} />
+          <button onClick={handleWhitelist} style={{ background: "#a78bfa22", border: "1px solid #a78bfa", borderRadius: 6, color: "#a78bfa", fontSize: 11, padding: "6px 12px", cursor: "pointer" }}>
+            Add to Whitelist (Circle)
+          </button>
+          {wlStatus && <div style={{ fontSize: 10, color: "#3dd6f5", marginTop: 6 }}>{wlStatus}</div>}
+        </div>
+      )}
     </div>
   );
 }
