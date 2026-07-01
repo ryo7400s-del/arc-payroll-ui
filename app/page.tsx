@@ -579,7 +579,7 @@ export default function ArcPayroll() {
 
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>Create Payment Schedule</div>
-              {!(address || privyAddress) && (
+              {!(address || privyAddress || circleWallet?.address) && (
                 <div style={{padding:"28px 0",textAlign:"center"}}>
                   <div style={{color:"#8ab4cc",fontSize:12,marginBottom:14}}>Open in MetaMask browser and connect wallet</div>
                   <button className="connect-btn" onClick={connect} disabled={connecting}>{connecting?"Connecting…":"Connect Wallet"}</button>
@@ -593,13 +593,13 @@ export default function ArcPayroll() {
                   {txHash && <div style={{marginTop:10,fontSize:10}}><a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{color:"#3dd6f5"}}>View on ArcScan →</a></div>}
                 </div>
               )}
-              {(address || privyAddress) && txState==="error" && (
+              {(address || privyAddress || circleWallet?.address) && txState==="error" && (
                 <div style={{padding:"20px 0",textAlign:"center"}}>
                   <div style={{color:"#ff4d6d",fontSize:12,marginBottom:6}}>Failed</div>
                   <div style={{color:"#8ab4cc",fontSize:11,maxWidth:400,margin:"0 auto",wordBreak:"break-all"}}>{txError}</div>
                 </div>
               )}
-              {(address || privyAddress) && !["success","error"].includes(txState) && (
+              {(address || privyAddress || circleWallet?.address) && !["success","error"].includes(txState) && (
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                     <div>
