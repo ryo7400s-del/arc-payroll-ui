@@ -249,7 +249,7 @@ function StatusPill({ active }: { active: boolean }) {
 
 export default function ArcPayroll() {
   const { isConnected: isPrivyConnected, address: privyAddress, getProvider: getPrivyProvider } = usePrivyWallet();
-  const { isConnected: isCircleConnected } = useCircleWallet();
+  const { isConnected: isCircleConnected, wallet: circleWallet, userToken: circleUserToken } = useCircleWallet();
   const { wallets } = useWallets();
   const [address,   setAddress]   = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
@@ -364,6 +364,29 @@ export default function ArcPayroll() {
       if (saved) { setSCHEDULER(saved as `0x${string}`); setHasDeployedContract(true); }
     }
   }, [isPrivyConnected, privyAddress]);
+
+  // Circle ログイン時に Registry から schedulerOf を読んでコントラクトアドレスを復元
+  useEffect(() => {
+    console.log("[Circle] isConnected:", isCircleConnected, "wallet:", circleWallet?.address);
+    if (isCircleConnected && circleWallet?.address) {
+      const REGISTRY_ADDR = "0xc01c0113e353c6fc1be7d32a80e9688e1256b81f" as `0x${string}`;
+      const REGISTRY_READ_ABI = [
+        { type: "function", name: "schedulerOf", inputs: [{name:"",type:"address"}], outputs: [{type:"address"}], stateMutability: "view" },
+      ] as const;
+      publicClient.readContract({
+        address: REGISTRY_ADDR,
+        abi: REGISTRY_READ_ABI,
+        functionName: "schedulerOf",
+        args: [circleWallet.address as `0x${string}`],
+      }).then((result: any) => {
+        console.log("[Circle] schedulerOf result:", result);
+        if (result && result !== "0x0000000000000000000000000000000000000000") {
+          setSCHEDULER(result as `0x${string}`);
+          setHasDeployedContract(true);
+        }
+      }).catch(console.error);
+    }
+  }, [isCircleConnected, circleWallet]);
 
   const handleCreate = useCallback(async () => {
     if (!(address || privyAddress) || !form.to || !form.amount) return;
@@ -615,8 +638,7 @@ export default function ArcPayroll() {
         {activeTab==="schedule" && (
           <div className="animate-in">
             <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address || privyAddress}`, addr); setHasDeployedContract(true); }}  isPrivyWallet={isPrivyConnected} privyAddress={privyAddress || ""} getPrivyProvider={getPrivyProvider} />
-            <CircleDeployTest />
-            <CircleDeployTest />
+            <CircleDeployTest onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); setHasDeployedContract(true); }} />
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
