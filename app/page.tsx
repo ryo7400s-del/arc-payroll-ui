@@ -249,7 +249,7 @@ function StatusPill({ active }: { active: boolean }) {
 
 export default function ArcPayroll() {
   const { isConnected: isPrivyConnected, address: privyAddress, getProvider: getPrivyProvider } = usePrivyWallet();
-  const { isConnected: isCircleConnected, wallet: circleWallet, userToken: circleUserToken } = useCircleWallet();
+  const { isConnected: isCircleConnected, wallet: circleWallet, userToken: circleUserToken, encryptionKey: circleEncryptionKey } = useCircleWallet();
   const { wallets } = useWallets();
   const [address,   setAddress]   = useState<`0x${string}`|null>(null);
   const [SCHEDULER, setSCHEDULER] = useState<`0x${string}`>(DEFAULT_SCHEDULER);
@@ -405,12 +405,7 @@ export default function ArcPayroll() {
               const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
               const sdk = new W3SSdk();
               sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
-              const { encryptionKey: ek } = (await fetch("/api/circle", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "createUserToken", userToken: circleUserToken }),
-              }).then(r => r.json()));
-              sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: ek || "" });
+              sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey || "" });
               await new Promise<void>((resolve, reject) => {
                 sdk.execute(hash, (err: any) => {
                   if (err) reject(err);
