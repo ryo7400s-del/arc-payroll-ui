@@ -64,11 +64,14 @@ export async function addEmployeesBatch(
       });
       const approveData = await approveRes.json();
       if (approveData.error) throw new Error(approveData.error);
-      onProgress?.(-1, "done", undefined, approveData.challengeId + ":approve");
-      // approve の PIN 入力完了を待つ（page.tsx 側で sdk.execute する）
-      await new Promise(r => setTimeout(r, 500));
-    }
-
+// approve challengeId を page.tsx に渡して PIN 入力を待つ
+      await new Promise<void>((resolve, reject) => {
+        if (onProgress) {
+          (onProgress as any)(-1, "approve", undefined, approveData.challengeId, resolve, reject);
+        } else {
+          resolve();
+        }
+      });
     for (let i = 0; i < employees.length; i++) {
       const emp = employees[i];
       try {
