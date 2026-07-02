@@ -406,12 +406,21 @@ export default function ArcPayroll() {
               const sdk = new W3SSdk();
               sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
               sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey || "" });
-              await new Promise<void>((resolve, reject) => {
-                sdk.execute(hash, (err: any) => {
+
+              const executeChallenge = (challengeId: string) => new Promise<void>((resolve, reject) => {
+                sdk.execute(challengeId, (err: any) => {
                   if (err) reject(err);
                   else resolve();
                 });
               });
+
+              if (hash.endsWith(":approve")) {
+                // Approve チャレンジを実行してから、次の done (schedule) を待つ
+                await executeChallenge(hash.replace(":approve", ""));
+                // approve 完了後、次の onProgress(done) が来るのを待つ
+              } else {
+                await executeChallenge(hash);
+              }
             } else {
               setTxHash(hash);
             }
