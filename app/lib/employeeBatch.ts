@@ -40,6 +40,35 @@ export async function addEmployeesBatch(
 ) {
   // Circle ウォレットの場合は contractExecution API を使う
   if (isCircleConnected && circleUserToken && circleWalletId) {
+    // allowance チェック
+    const allowanceRes = await fetch("/api/circle-check-allowance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ownerAddress,
+        schedulerAddress: scheduler,
+        requiredAmount: employees.reduce((sum, e) => sum + parseFloat(e.amount || "0"), 0).toString(),
+      }),
+    });
+    const { needsApprove } = await allowanceRes.json();
+
+    if (needsApprove) {
+      const approveRes = await fetch("/api/circle-approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userToken: circleUserToken,
+          walletId: circleWalletId,
+          schedulerAddress: scheduler,
+        }),
+      });
+      const approveData = await approveRes.json();
+      if (approveData.error) throw new Error(approveData.error);
+      onProgress?.(-1, "done", undefined, approveData.challengeId + ":approve");
+      // approve の PIN 入力完了を待つ（page.tsx 側で sdk.execute する）
+      await new Promise(r => setTimeout(r, 500));
+    }
+
     for (let i = 0; i < employees.length; i++) {
       const emp = employees[i];
       try {
