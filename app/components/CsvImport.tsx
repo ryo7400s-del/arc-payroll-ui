@@ -26,11 +26,15 @@ type Row = {
   status: "pending"|"success"|"error"; error?: string;
 };
 
-export default function CsvImport({ address, scheduler, abi, getPrivyProvider, privyWallets, isPrivyConnected }: {
+export default function CsvImport({ address, scheduler, abi, getPrivyProvider, privyWallets, isPrivyConnected, isCircleConnected, circleUserToken, circleWalletId, circleEncryptionKey }: {
   address: string; scheduler: `0x${string}`; abi: any;
   getPrivyProvider?: () => Promise<any>;
   privyWallets?: any[];
   isPrivyConnected?: boolean;
+  isCircleConnected?: boolean;
+  circleUserToken?: string;
+  circleWalletId?: string;
+  circleEncryptionKey?: string;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
@@ -83,8 +87,94 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
   };
 
   const handleImport = async () => {
-    if (!rows.length || !(window as any).ethereum) return;
+    if (!rows.length) return;
     setRunning(true);
+
+    // Circle ウォレット専用フロー
+    if (isCircleConnected && circleUserToken && circleWalletId && circleEncryptionKey) {
+      const executeSdk = async (challengeId: string) => {
+        const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+        const sdk = new W3SSdk();
+        sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+        sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey });
+        await new Promise<void>((resolve, reject) => {
+          sdk.execute(challengeId, (err: any) => {
+            if (err) reject(new Error(err.message));
+            else resolve();
+          });
+        });
+      };
+
+      try {
+        // Approve チェック
+        setPhase("Checking allowance…");
+        const totalNeeded = rows.reduce((sum, r) => sum + parseFloat(r.amount || "0"), 0);
+        const allowanceRes = await fetch("/api/circle-check-allowance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ownerAddress: address, schedulerAddress: scheduler, requiredAmount: totalNeeded.toString() }),
+        });
+        const { needsApprove } = await allowanceRes.json();
+
+        if (needsApprove) {
+          setPhase("Approving USDC…");
+          const approveRes = await fetch("/api/circle-approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userToken: circleUserToken, walletId: circleWalletId, schedulerAddress: scheduler }),
+          });
+          const approveData = await approveRes.json();
+          if (approveData.error) throw new Error(approveData.error);
+          await executeSdk(approveData.challengeId);
+        }
+
+        // 各行: ホワイトリスト → スケジュール作成
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i];
+          setPhase(`Whitelisting ${i+1}/${rows.length}: ${r.label}…`);
+          const wlRes = await fetch("/api/circle-whitelist-batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userToken: circleUserToken, walletId: circleWalletId, schedulerAddress: scheduler, targetAddress: r.to }),
+          });
+          const wlData = await wlRes.json();
+          if (!wlData.error) {
+            await executeSdk(wlData.challengeId);
+          }
+
+          setPhase(`Creating schedule ${i+1}/${rows.length}: ${r.label}…`);
+          const schedRes = await fetch("/api/circle-schedule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userToken: circleUserToken,
+              walletId: circleWalletId,
+              schedulerAddress: scheduler,
+              to: r.to,
+              amount: r.amount,
+              interval: r.interval,
+              label: r.label,
+              firstExecution: (r.firstExecution ?? 0n).toString(),
+              useEURC: r.useEURC,
+            }),
+          });
+          const schedData = await schedRes.json();
+          if (schedData.error) throw new Error(schedData.error);
+          await executeSdk(schedData.challengeId);
+
+          setRows(prev => prev.map((row, idx) => idx === i ? { ...row, status: "success" } : row));
+        }
+      } catch (e: any) {
+        setRows(prev => prev.map(r => r.status === "pending" ? { ...r, status: "error", error: e.message?.slice(0,50) } : r));
+      }
+
+      setPhase("");
+      setRunning(false);
+      setDone(true);
+      return;
+    }
+
+    if (!(window as any).ethereum && !(isPrivyConnected && privyWallets)) { setRunning(false); return; }
     const pc = createPublicClient({ chain: arcTestnet, transport: http() });
     let wc;
     if (isPrivyConnected && privyWallets) {

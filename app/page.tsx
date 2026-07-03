@@ -681,7 +681,7 @@ export default function ArcPayroll() {
         )}
         {activeTab==="dashboard" && (address || privyAddress) && (
           <div className="animate-in" style={{marginTop:16}}>
-            <CsvImport address={(address || privyAddress) as string} scheduler={SCHEDULER} abi={SCHEDULER_ABI} getPrivyProvider={getPrivyProvider} privyWallets={wallets} isPrivyConnected={isPrivyConnected} />
+            <CsvImport address={(address || privyAddress || circleWallet?.address) as string} scheduler={SCHEDULER} abi={SCHEDULER_ABI} getPrivyProvider={getPrivyProvider} privyWallets={wallets} isPrivyConnected={isPrivyConnected} isCircleConnected={isCircleConnected} circleUserToken={circleUserToken || undefined} circleWalletId={circleWallet?.id} circleEncryptionKey={circleEncryptionKey || undefined} />
             <div className="card" style={{marginTop:16}}>
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>⬡ x402 Payroll Report</div>
               <div style={{fontSize:11,color:"#4a7090",marginBottom:16,lineHeight:1.7}}>Pay <span style={{color:"#3dd6f5"}}>1 USDC</span> to unlock this month&apos;s payroll report — powered by HTTP 402 Payment Required protocol.</div>
