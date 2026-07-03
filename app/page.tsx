@@ -394,46 +394,74 @@ export default function ArcPayroll() {
     setTxState("approving"); setTxError("");
     try {
       const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
-      await addEmployeesBatch(
-        [{ label: form.label||"Employee", to: form.to as `0x${string}`, amount: form.amount, interval: form.interval, firstExecution: fe, useEURC: form.useEURC }],
-        currentAddress, SCHEDULER, SCHEDULER_ABI, publicClient,
-        async (_i, status, error, hash) => {
-          if (status === "scheduling") setTxState("creating");
-          if (status === "done" && hash) {
-            // Circle の場合 hash = challengeId なので SDK で実行
-            if (isCircleConnected && circleUserToken && circleWallet?.id) {
-              const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
-              const sdk = new W3SSdk();
-              sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
-              sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey || "" });
 
-              const executeChallenge = (challengeId: string) => new Promise<void>((resolve, reject) => {
-                sdk.execute(challengeId, (err: any) => {
-                  if (err) reject(err);
-                  else resolve();
-                });
-              });
+      if (isCircleConnected && circleUserToken && circleWallet?.id && circleEncryptionKey) {
+        const executeSdk = async (challengeId: string) => {
+          const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+          const sdk = new W3SSdk();
+          sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+          sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey });
+          await new Promise<void>((resolve, reject) => {
+            sdk.execute(challengeId, (err: any) => {
+              if (err) reject(new Error(err.message));
+              else resolve();
+            });
+          });
+        };
 
-              if (hash.endsWith(":approve")) {
-                // Approve チャレンジを実行してから、次の done (schedule) を待つ
-                await executeChallenge(hash.replace(":approve", ""));
-                // approve 完了後、次の onProgress(done) が来るのを待つ
-              } else {
-                await executeChallenge(hash);
-              }
-            } else {
-              setTxHash(hash);
-            }
-          }
-          if (status === "error") throw new Error(error || "Failed");
-        },
-        getPrivyProvider,
-        wallets,
-        isPrivyConnected,
-        circleUserToken || undefined,
-        circleWallet?.id || undefined,
-        isCircleConnected
-      );
+        const allowanceRes = await fetch("/api/circle-check-allowance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ownerAddress: currentAddress, schedulerAddress: SCHEDULER, requiredAmount: form.amount }),
+        });
+        const { needsApprove } = await allowanceRes.json();
+
+        if (needsApprove) {
+          const approveRes = await fetch("/api/circle-approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userToken: circleUserToken, walletId: circleWallet.id, schedulerAddress: SCHEDULER }),
+          });
+          const approveData = await approveRes.json();
+          if (approveData.error) throw new Error(approveData.error);
+          await executeSdk(approveData.challengeId);
+        }
+
+        setTxState("creating");
+        const schedRes = await fetch("/api/circle-schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userToken: circleUserToken,
+            walletId: circleWallet.id,
+            schedulerAddress: SCHEDULER,
+            to: form.to,
+            amount: form.amount,
+            interval: form.interval,
+            label: form.label || "Employee",
+            firstExecution: fe.toString(),
+            useEURC: form.useEURC,
+          }),
+        });
+        const schedData = await schedRes.json();
+        if (schedData.error) throw new Error(schedData.error);
+        await executeSdk(schedData.challengeId);
+
+      } else {
+        await addEmployeesBatch(
+          [{ label: form.label||"Employee", to: form.to as `0x${string}`, amount: form.amount, interval: form.interval, firstExecution: fe, useEURC: form.useEURC }],
+          currentAddress, SCHEDULER, SCHEDULER_ABI, publicClient,
+          (_i, status, error, hash) => {
+            if (status === "scheduling") setTxState("creating");
+            if (status === "done" && hash) setTxHash(hash);
+            if (status === "error") throw new Error(error || "Failed");
+          },
+          getPrivyProvider,
+          wallets,
+          isPrivyConnected
+        );
+      }
+
       setTxState("success");
       await fetchSchedules();
       setTimeout(()=>{ setTxState("idle"); setTxHash(""); setForm({to:"",amount:"",interval:2592000,label:"",firstExecution:"",useEURC:false}); }, 6000);
