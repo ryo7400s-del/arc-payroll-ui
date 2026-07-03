@@ -679,7 +679,7 @@ export default function ArcPayroll() {
             </div>
           </div>
         )}
-        {activeTab==="dashboard" && (address || privyAddress) && (
+        {activeTab==="dashboard" && (address || privyAddress || circleWallet?.address) && (
           <div className="animate-in" style={{marginTop:16}}>
             <CsvImport address={(address || privyAddress || circleWallet?.address) as string} scheduler={SCHEDULER} abi={SCHEDULER_ABI} getPrivyProvider={getPrivyProvider} privyWallets={wallets} isPrivyConnected={isPrivyConnected} isCircleConnected={isCircleConnected} circleUserToken={circleUserToken || undefined} circleWalletId={circleWallet?.id} circleEncryptionKey={circleEncryptionKey || undefined} />
             <div className="card" style={{marginTop:16}}>
