@@ -24,7 +24,7 @@ const MULTICALL3FROM_ABI = [{
 
 type Row = { label: string; address: string; status: "pending"|"success"|"skipped"|"error"; error?: string };
 
-export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClient, getPrivyProvider, isPrivyConnected, privyWallets }: {
+export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClient, getPrivyProvider, isPrivyConnected, privyWallets, isCircleConnected, circleUserToken, circleWalletId, circleEncryptionKey }: {
   ownerAddress: string;
   scheduler: `0x${string}`;
   abi: any;
@@ -32,6 +32,10 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
   isPrivyConnected?: boolean;
   privyWallets?: any[];
   publicClient: any;
+  isCircleConnected?: boolean;
+  circleUserToken?: string;
+  circleWalletId?: string;
+  circleEncryptionKey?: string;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
@@ -57,6 +61,51 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
   const handleImport = async () => {
     if (!rows.length) return;
     setRunning(true);
+
+    // Circle ウォレット専用フロー
+    if (isCircleConnected && circleUserToken && circleWalletId && circleEncryptionKey) {
+      const executeSdk = async (challengeId: string) => {
+        const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+        const sdk = new W3SSdk();
+        sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+        sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey });
+        await new Promise<void>((resolve, reject) => {
+          sdk.execute(challengeId, (err: any) => {
+            if (err) reject(new Error(err.message));
+            else resolve();
+          });
+        });
+      };
+
+      try {
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i];
+          const isWl = await publicClient.readContract({
+            address: scheduler, abi, functionName: "isWhitelisted",
+            args: [ownerAddress as `0x${string}`, r.address as `0x${string}`],
+          }) as boolean;
+          if (isWl) {
+            setRows(prev => prev.map((row, idx) => idx === i ? { ...row, status: "skipped" } : row));
+            continue;
+          }
+          const res = await fetch("/api/circle-whitelist-batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userToken: circleUserToken, walletId: circleWalletId, schedulerAddress: scheduler, targetAddress: r.address }),
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          await executeSdk(data.challengeId);
+          setRows(prev => prev.map((row, idx) => idx === i ? { ...row, status: "success" } : row));
+        }
+      } catch (e: any) {
+        setRows(prev => prev.map(r => r.status === "pending" ? { ...r, status: "error", error: e.message?.slice(0,50) } : r));
+      }
+      setRunning(false);
+      setDone(true);
+      return;
+    }
+
     let wc;
     if (isPrivyConnected && privyWallets) {
       const embWallet = privyWallets.find((w: any) => w.walletClientType === "privy");

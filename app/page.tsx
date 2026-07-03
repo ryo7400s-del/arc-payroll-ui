@@ -750,7 +750,7 @@ export default function ArcPayroll() {
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <a href={`https://testnet.arcscan.app/address/${SCHEDULER}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>{SCHEDULER.slice(0,10)}…</a>
             </div>
-            <CsvWhitelist ownerAddress={address || privyAddress || ""} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} getPrivyProvider={getPrivyProvider} isPrivyConnected={isPrivyConnected} privyWallets={wallets} />
+            <CsvWhitelist ownerAddress={address || privyAddress || circleWallet?.address || ""} scheduler={SCHEDULER} abi={SCHEDULER_ABI} publicClient={publicClient} getPrivyProvider={getPrivyProvider} isPrivyConnected={isPrivyConnected} privyWallets={wallets} isCircleConnected={isCircleConnected} circleUserToken={circleUserToken || undefined} circleWalletId={circleWallet?.id} circleEncryptionKey={circleEncryptionKey || undefined} />
             </>
             )}
           </div>
