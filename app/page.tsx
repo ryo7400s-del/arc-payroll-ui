@@ -9,6 +9,7 @@ import DeployContract from "./components/DeployContract";
 import PrivyLoginButton from "./components/PrivyLoginButton";
 import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
 import CircleDeployTest from "./components/CircleDeployTest";
+import WalletWithdraw from "./components/WalletWithdraw";
 import CircleLoginButton from "./components/CircleLoginButton";
 import { useCircleWallet } from "@/lib/circle/CircleWalletContext";
 import { useWallets } from "@privy-io/react-auth";
@@ -695,6 +696,9 @@ export default function ArcPayroll() {
           <div className="animate-in">
             <DeployContract onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); localStorage.setItem(`payroll_contract_${address || privyAddress}`, addr); setHasDeployedContract(true); }}  isPrivyWallet={isPrivyConnected} privyAddress={privyAddress || ""} getPrivyProvider={getPrivyProvider} />
             <CircleDeployTest onDeployed={(addr) => { setSCHEDULER(addr as `0x${string}`); setHasDeployedContract(true); }} />
+            {(isPrivyConnected || isCircleConnected) && (
+              <WalletWithdraw address={(privyAddress || circleWallet?.address || "") as string} publicClient={publicClient} getPrivyProvider={getPrivyProvider} isPrivyConnected={isPrivyConnected} privyWallets={wallets} isCircleConnected={isCircleConnected} circleUserToken={circleUserToken || undefined} circleWalletId={circleWallet?.id} circleEncryptionKey={circleEncryptionKey || undefined} />
+            )}
             <SetupWizard
               address={address||""}
               hasDeployed={hasDeployedContract}
