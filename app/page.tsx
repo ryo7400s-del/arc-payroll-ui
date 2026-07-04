@@ -783,7 +783,7 @@ export default function ArcPayroll() {
             )}
           </div>
         )}
-        {activeTab==="history" && address && (
+        {activeTab==="history" && (address || privyAddress || circleWallet?.address) && (
           <div className="animate-in">
             <div className="card">
               <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:18}}>
