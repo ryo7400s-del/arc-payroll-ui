@@ -811,7 +811,49 @@ export default function ArcPayroll() {
                         <button className="exec-btn" onClick={()=>handleExecute(i)} disabled={txState!=="idle"}>
                           {txState==="executing"?<span className="spinning">◌</span>:`Send·${next}`}
                         </button>
-                        <button className="exec-btn" style={{background:"#1a0a0a",borderColor:row.active?"#ff4d6d":"#00e5a0",color:row.active?"#ff4d6d":"#00e5a0"}} onClick={async()=>{ const wc=createWalletClient({account:address!,chain:arcTestnet,transport:custom((window as any).ethereum)}); try{ const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"toggleSchedule",args:[BigInt(i)]}); await publicClient.waitForTransactionReceipt({hash:h}); fetchSchedules(); }catch(e:any){alert(e.message);} }} disabled={txState!=="idle"}>{row.active?"Pause":"Resume"}</button>
+                        <button className="exec-btn" style={{background:"#1a0a0a",borderColor:row.active?"#ff4d6d":"#00e5a0",color:row.active?"#ff4d6d":"#00e5a0"}} onClick={async()=>{
+                          const currentAddr = (address || privyAddress || circleWallet?.address) as `0x${string}`;
+                          if (!currentAddr) return;
+                          try {
+                            // Circle ウォレット専用フロー
+                            if (isCircleConnected && circleUserToken && circleWallet?.id && circleEncryptionKey) {
+                              const res = await fetch("/api/circle-toggle-schedule", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ userToken: circleUserToken, walletId: circleWallet.id, schedulerAddress: SCHEDULER, index: i }),
+                              });
+                              const data = await res.json();
+                              if (data.error) throw new Error(data.error);
+                              const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+                              const sdk = new W3SSdk();
+                              sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+                              sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey });
+                              await new Promise<void>((resolve, reject) => {
+                                sdk.execute(data.challengeId, (err: any) => {
+                                  if (err) reject(new Error(err.message));
+                                  else resolve();
+                                });
+                              });
+                              fetchSchedules();
+                              return;
+                            }
+
+                            // Privy / MetaMask フロー
+                            let eip1193: any;
+                            if (isPrivyConnected) {
+                              const embWallet = wallets.find(w => w.walletClientType === "privy");
+                              if (!embWallet) { alert("Privy wallet not found"); return; }
+                              await embWallet.switchChain(5042002);
+                              eip1193 = await embWallet.getEthereumProvider();
+                            } else {
+                              eip1193 = (window as any).ethereum;
+                            }
+                            const wc=createWalletClient({account:currentAddr,chain:arcTestnet,transport:custom(eip1193)});
+                            const h=await wc.writeContract({address:SCHEDULER,abi:SCHEDULER_ABI,functionName:"toggleSchedule",args:[BigInt(i)]});
+                            await publicClient.waitForTransactionReceipt({hash:h});
+                            fetchSchedules();
+                          } catch(e:any) { alert(e.message); }
+                        }} disabled={txState!=="idle"}>{row.active?"Pause":"Resume"}</button>
                       </div>
                     );
                   })}
