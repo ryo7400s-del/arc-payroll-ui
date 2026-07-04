@@ -62,7 +62,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
     if (!rows.length) return;
     setRunning(true);
 
-    // Circle ウォレット専用フロー
+    // Circle wallet-specific flow
     if (isCircleConnected && circleUserToken && circleWalletId && circleEncryptionKey) {
       const executeSdk = async (challengeId: string) => {
         const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
@@ -118,7 +118,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
       wc = createWalletClient({ account: ownerAddress as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
     }
 
-    // 既登録チェック
+    // Check existing registrations
     const toRegister: number[] = [];
     for (let i = 0; i < rows.length; i++) {
       const isWl = await publicClient.readContract({
@@ -139,7 +139,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
     }
 
     try {
-      // バッチ用callsを作成
+      // for batchcalls creation
       const calls = toRegister.map(i => ({
         target: scheduler,
         allowFailure: false,
@@ -150,7 +150,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
         }),
       }));
 
-      // 1回のTXで全員登録
+      // 1 txTXregister all in
       const hash = await wc.writeContract({
         address: MULTICALL3FROM,
         abi: MULTICALL3FROM_ABI,
@@ -159,7 +159,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
       });
       await publicClient.waitForTransactionReceipt({ hash });
 
-      // 全員successに更新
+      // allsuccess update
       setRows(prev => prev.map((r, idx) =>
         toRegister.includes(idx) ? { ...r, status: "success" } : r
       ));
@@ -182,7 +182,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
         CSV format: <span style={{color:"#3dd6f5",fontFamily:"DM Mono,monospace"}}>Label, Address</span>
       </div>
       <div style={{fontSize:10,color:"#8ab4cc",marginBottom:12}}>
-        既登録アドレスは自動スキップ・全員1回のTXで登録
+        Already registered addresses auto-skipped・all1 txTX registration
       </div>
       <input type="file" accept=".csv" onChange={handleFile}
         style={{fontSize:11,color:"#8ab4cc",marginBottom:12,display:"block"}}/>

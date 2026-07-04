@@ -97,7 +97,7 @@ function X402Send({ address }: { address: string }) {
     if (!(window as any).ethereum) return;
     setState("step1");
     try {
-      // Step1: GET /api/x402 → 402レスポンス受け取る
+      // Step1: GET /api/x402 → 402Receive response
       const merchantAddr = x402Merchant || "0x2032C2aC5cdB02b2e0D46e015Af991C257edd388";
       const amountUsdc = String(Math.round(parseFloat(x402Amount||"1") * 1_000_000));
       console.log("DEBUG: merchantAddr=", merchantAddr, "amountUsdc=", amountUsdc);
@@ -105,7 +105,7 @@ function X402Send({ address }: { address: string }) {
       const info = await r1.json();
       setX402Info(info.x402);
 
-      // Step2: 署名
+      // Step2: Signature
       setState("signing");
       const { createWalletClient, createPublicClient, custom, http, parseUnits, keccak256, encodeAbiParameters, parseAbiParameters, toBytes } = await import("viem");
       const arc = { id:5042002, name:"Arc Testnet", nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18}, rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}, blockExplorers:{default:{name:"ArcScan",url:"https://testnet.arcscan.app"}} } as const;
@@ -133,7 +133,7 @@ function X402Send({ address }: { address: string }) {
       await pc.waitForTransactionReceipt({ hash });
       setTxHash(hash);
 
-      // Step4: POST /api/x402 → コンテンツ取得
+      // Step4: POST /api/x402 → Fetch content
       const r2 = await fetch("/api/x402", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ payer:address, amount:info.x402.amount, expiry:expiry.toString(), nonce:nonce.toString(), signature, content }) });
       const result = await r2.json();
       if (!result.success) throw new Error(result.error);
@@ -358,7 +358,7 @@ export default function ArcPayroll() {
 
   useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
 
-  // Privy ログイン時にコントラクトアドレスを復元
+  // Privy Restore contract address on login
   useEffect(() => {
     if (isPrivyConnected && privyAddress) {
       const saved = localStorage.getItem(`payroll_contract_${privyAddress}`);
@@ -366,7 +366,7 @@ export default function ArcPayroll() {
     }
   }, [isPrivyConnected, privyAddress]);
 
-  // Circle ログイン時に Registry から schedulerOf を読んでコントラクトアドレスを復元
+  // Circle On login, Registry  from schedulerOf  read to restore contract address
   useEffect(() => {
     console.log("[Circle] isConnected:", isCircleConnected, "wallet:", circleWallet?.address);
     if (isCircleConnected && circleWallet?.address) {
@@ -659,10 +659,10 @@ export default function ArcPayroll() {
                     <input type="date" className="input-field" value={form.firstExecution} onChange={e=>setForm(f=>({...f,firstExecution:e.target.value}))} min={new Date().toISOString().split("T")[0]} style={{colorScheme:"dark"}}/>
                   </div>
                   <div style={{marginTop:12,display:"flex",alignItems:"center",gap:12}}>
-                    <div style={{fontSize:10,color:"#8ab4cc"}}>受取通貨：</div>
+                    <div style={{fontSize:10,color:"#8ab4cc"}}>Receiving Currency：</div>
                     <button onClick={()=>setForm(f=>({...f,useEURC:false}))} style={{padding:"4px 12px",borderRadius:3,fontSize:11,cursor:"pointer",background:!form.useEURC?"#3dd6f5":"none",color:!form.useEURC?"#070e18":"#8ab4cc",border:"1px solid #3dd6f5"}}>USDC</button>
                     <button onClick={()=>setForm(f=>({...f,useEURC:true}))} style={{padding:"4px 12px",borderRadius:3,fontSize:11,cursor:"pointer",background:form.useEURC?"#a78bfa":"none",color:form.useEURC?"#070e18":"#8ab4cc",border:"1px solid #a78bfa"}}>EURC 🇪🇺</button>
-                    {form.useEURC && <span style={{fontSize:10,color:"#a78bfa"}}>USDCをCurveで自動スワップ</span>}
+                    {form.useEURC && <span style={{fontSize:10,color:"#a78bfa"}}>USDC Curve Auto-swap</span>}
                   </div>
                     </div>
                   </div>
@@ -727,7 +727,7 @@ export default function ArcPayroll() {
                   const addr=(document.getElementById("wl-input") as HTMLInputElement).value;
                   if(!addr) return;
 
-                  // Circle ウォレット専用フロー
+                  // Circle wallet-specific flow
                   if (isCircleConnected && circleUserToken && circleWallet?.id && circleEncryptionKey) {
                     try {
                       const res = await fetch("/api/circle-whitelist-batch", {

@@ -60,15 +60,15 @@ export default function WalletWithdraw({
   };
 
   const handleSend = async () => {
-    if (!toAddress || !amount || !address) { alert("送金先アドレスと金額を入力してください"); return; }
-    if (!toAddress.startsWith("0x")) { alert("有効なアドレスを入力してください"); return; }
+    if (!toAddress || !amount || !address) { alert("Please enter recipient address and amount"); return; }
+    if (!toAddress.startsWith("0x")) { alert("Please enter a valid address"); return; }
     const amountWei = parseUnits(amount, 6);
-    if (amountWei > balance) { alert("残高が不足しています"); return; }
+    if (amountWei > balance) { alert("Insufficient balance"); return; }
 
     try {
-      setStatus("送金中...");
+      setStatus("Sending...");
 
-      // Circle ウォレット専用フロー
+      // Circle wallet-specific flow
       if (isCircleConnected && circleUserToken && circleWalletId && circleEncryptionKey) {
         const res = await fetch("/api/circle-transfer", {
           method: "POST",
@@ -93,13 +93,13 @@ export default function WalletWithdraw({
             else resolve();
           });
         });
-        setStatus("✅ 送金完了！");
+        setStatus("✅ Transfer complete！");
         setAmount(""); setToAddress("");
         await fetchBalance();
         return;
       }
 
-      // Privy / MetaMask フロー
+      // Privy / MetaMask Flow
       let eip1193: any;
       if (isPrivyConnected && privyWallets) {
         const embWallet = privyWallets.find((w: any) => w.walletClientType === "privy");
@@ -117,7 +117,7 @@ export default function WalletWithdraw({
         args: [toAddress as `0x${string}`, amountWei],
       });
       await publicClient.waitForTransactionReceipt({ hash });
-      setStatus("✅ 送金完了！");
+      setStatus("✅ Transfer complete！");
       setAmount(""); setToAddress("");
       await fetchBalance();
     } catch (e: any) {
@@ -130,17 +130,17 @@ export default function WalletWithdraw({
       <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#2e6080", textTransform: "uppercase", marginBottom: 18 }}>Withdraw USDC</div>
 
       <div style={{ marginBottom: 16, padding: "12px 16px", background: "#070e18", border: "1px solid #1a2a3a", borderRadius: 6 }}>
-        <div style={{ fontSize: 10, color: "#8ab4cc", marginBottom: 4 }}>残高</div>
+        <div style={{ fontSize: 10, color: "#8ab4cc", marginBottom: 4 }}>Balance</div>
         <div style={{ fontSize: 24, color: "#3dd6f5", fontWeight: 600 }}>{balanceFormatted.toLocaleString("en-US", { minimumFractionDigits: 2 })} <span style={{ fontSize: 14, color: "#8ab4cc" }}>USDC</span></div>
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 10, color: "#8ab4cc", marginBottom: 6 }}>送金先アドレス</div>
+        <div style={{ fontSize: 10, color: "#8ab4cc", marginBottom: 6 }}>Recipient Address</div>
         <input className="input-field" placeholder="0x..." value={toAddress} onChange={e => setToAddress(e.target.value)} />
       </div>
 
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 10, color: "#8ab4cc", marginBottom: 6 }}>金額 (USDC)</div>
+        <div style={{ fontSize: 10, color: "#8ab4cc", marginBottom: 6 }}>Amount (USDC)</div>
         <input className="input-field" placeholder="0.00" type="number" value={amount} onChange={e => setAmount(e.target.value)} />
       </div>
 

@@ -22,17 +22,17 @@ export default function DeployContract({ onDeployed, isPrivyWallet = false, priv
   const [companyName, setCompanyName] = useState("");
 
 const handleDeployPrivy = async () => {
-    if (!getPrivyProvider || !privyAddress) return alert("Privy Wallet が接続されていません");
+    if (!getPrivyProvider || !privyAddress) return alert("Privy Wallet  not connected");
     setStatus("deploying");
     try {
       const provider = await getPrivyProvider();
-      if (!provider) throw new Error("Provider 取得失敗");
+      if (!provider) throw new Error("Provider retrieval failed");
       const signer = await provider.getSigner();
       const factory = new ethers.ContractFactory([], BYTECODE, signer);
       const contract = await factory.deploy();
       const receipt = await contract.deploymentTransaction()?.wait();
       const contractAddr = receipt?.contractAddress ?? await contract.getAddress();
-      if (!contractAddr) throw new Error("アドレス取得失敗");
+      if (!contractAddr) throw new Error("Address retrieval failed");
       setStatus("registering");
       const REGISTRY_ETHERS = ["function register(address scheduler, string name)"];
       const registry = new ethers.Contract(REGISTRY, REGISTRY_ETHERS, signer);
@@ -54,12 +54,12 @@ const handleDeployPrivy = async () => {
       const wc = createWalletClient({ account: addr, chain: arcTestnet, transport: custom((window as any).ethereum) });
       const pc = createPublicClient({ chain: arcTestnet, transport: http() });
 
-      // 1. コントラクトデプロイ
+      // 1. Contract deploy
       const hash = await wc.deployContract({ abi: [], bytecode: BYTECODE, account: addr as `0x${string}` });
       const receipt = await pc.waitForTransactionReceipt({ hash });
       const contractAddr = receipt.contractAddress!;
 
-      // 2. Registryに登録
+      // 2. Registry registration
       setStatus("registering");
       const rh = await wc.writeContract({
         address: REGISTRY, abi: REGISTRY_ABI, account: addr as `0x${string}`,

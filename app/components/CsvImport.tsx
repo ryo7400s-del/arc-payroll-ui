@@ -70,7 +70,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       }).filter(r => r.to.startsWith("0x"));
       setRows(parsed);
       setDone(false);
-      // ホワイトリスト状態を非同期でチェック
+      // Check whitelist status asynchronously
       const pc2 = createPublicClient({ chain: arcTestnet, transport: http() });
       Promise.all(parsed.map(async (r, idx) => {
         if (!r.to.startsWith("0x")) return;
@@ -90,7 +90,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
     if (!rows.length) return;
     setRunning(true);
 
-    // Circle ウォレット専用フロー
+    // Circle wallet-specific flow
     if (isCircleConnected && circleUserToken && circleWalletId && circleEncryptionKey) {
       const executeSdk = async (challengeId: string) => {
         const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
@@ -106,7 +106,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       };
 
       try {
-        // Approve チェック
+        // Approve Check
         setPhase("Checking allowance…");
         const totalNeeded = rows.reduce((sum, r) => sum + parseFloat(r.amount || "0"), 0);
         const allowanceRes = await fetch("/api/circle-check-allowance", {
@@ -128,7 +128,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
           await executeSdk(approveData.challengeId);
         }
 
-        // 各行: スケジュール作成（ホワイトリストは Setting タブで事前登録すること）
+        // each row: Scheduーle creation（Whitelist: Setting must be pre-registered in Setting tab）
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
           setPhase(`Creating schedule ${i+1}/${rows.length}: ${r.label}…`);
@@ -187,7 +187,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       await pc.waitForTransactionReceipt({ hash: ah });
     }
 
-    // Step2: ホワイトリスト未登録を確認してバッチ登録
+    // Step2: Check unregistered addresses and batch register
     setPhase("Checking whitelist…");
     const notWhitelisted: number[] = [];
     for (let i = 0; i < rows.length; i++) {
@@ -206,7 +206,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       await pc.waitForTransactionReceipt({ hash: wlHash });
     }
 
-    // Step3: スケジュール一括作成（バッチ）
+    // Step3: Scheduーle batch creation（Batch）
     setPhase(`Creating ${rows.length} schedules (1 TX)…`);
     try {
       const scheduleCalls = rows.map(r => ({
@@ -237,7 +237,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       </div>
       <div style={{fontSize:10,color:"#8ab4cc",marginBottom:4}}>Interval: weekly/bi-weekly/monthly/quarterly</div>
       <div style={{fontSize:10,color:"#8ab4cc",marginBottom:4}}>Date: today / tomorrow / YYYY-MM-DD (optional)</div>
-      <div style={{fontSize:10,color:"#a78bfa",marginBottom:12}}>Currency: USDC (default) / EURC (自動スワップ)</div>
+      <div style={{fontSize:10,color:"#a78bfa",marginBottom:12}}>Currency: USDC (default) / EURC (Auto-swap)</div>
       <input type="file" accept=".csv" onChange={handleFile} style={{fontSize:11,color:"#8ab4cc",marginBottom:12,display:"block"}}/>
       {rows.length > 0 && (
         <>

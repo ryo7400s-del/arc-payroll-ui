@@ -13,20 +13,20 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
 
   const handleDeploy = async () => {
     if (!wallet || !userToken || !encryptionKey) {
-      alert("Circle ウォレットが接続されていません");
+      alert("Circle Wallet not connected");
       return;
     }
     try {
-      // STEP1: バックエンドが捨てアドレスでコントラクトをデプロイ
-      setStatus("コントラクトをデプロイ中...");
+      // STEP1: Backend deploys contract from disposable address
+      setStatus("Deploying contract...");
       const deployRes = await fetch("/api/circle-backend-deploy", { method: "POST" });
       const deployData = await deployRes.json();
       if (deployData.error) throw new Error(deployData.error);
 
       const contractAddress = deployData.contractAddress;
-      setStatus(`デプロイ完了: ${contractAddress.slice(0,10)}... Registry登録中...`);
+      setStatus(`Deploy complete: ${contractAddress.slice(0,10)}... RegistryRegistering...`);
 
-      // STEP2: Circle ウォレットで register() を呼ぶ
+      // STEP2: Circle  wallet register()  call
       const res = await fetch("/api/circle-register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,19 +40,19 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // STEP3: Circle SDK で PIN 承認
+      // STEP3: Circle SDK   PIN Approve
       const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
       const sdk = new W3SSdk();
       sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
       sdk.setAuthentication({ userToken, encryptionKey });
 
-      setStatus("PINを入力してください...");
+      setStatus("PIN required...");
       sdk.execute(data.challengeId, (err: any) => {
         if (err) {
           setStatus("❌ " + err.message);
           return;
         }
-        setStatus("✅ デプロイ＆登録完了！");
+        setStatus("✅ Deploy＆registration complete！");
         setResult(contractAddress);
         onDeployed?.(contractAddress);
       });
@@ -66,13 +66,13 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
 
   const handleApprove = async () => {
     if (!wallet || !userToken || !encryptionKey) {
-      alert("Circle ウォレットが接続されていません");
+      alert("Circle Wallet not connected");
       return;
     }
-    const scheduler = result || prompt("スケジューラーアドレスを入力:");
+    const scheduler = result || prompt("ScheduーlerーEnter address:");
     if (!scheduler) return;
     try {
-      setApproveStatus("Approve中...");
+      setApproveStatus("Approve...");
       const res = await fetch("/api/circle-approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,7 +87,7 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
       sdk.setAuthentication({ userToken, encryptionKey });
       sdk.execute(data.challengeId, (err: any) => {
         if (err) { setApproveStatus("❌ " + err.message); return; }
-        setApproveStatus("✅ USDC Approve完了！");
+        setApproveStatus("✅ USDC Approvecomplete!");
       });
     } catch (e: any) {
       setApproveStatus("❌ " + e.message);
@@ -97,12 +97,12 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
 
   const handleWhitelist = async () => {
     if (!wallet || !userToken || !encryptionKey) {
-      alert("Circle ウォレットが接続されていません");
+      alert("Circle Wallet not connected");
       return;
     }
-    if (!wlAddress) { alert("アドレスを入力してください"); return; }
+    if (!wlAddress) { alert("Please enter an address"); return; }
     try {
-      setWlStatus("登録中...");
+      setWlStatus("Registering...");
       const res = await fetch("/api/circle-whitelist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,7 +123,7 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
 
       sdk.execute(data.challengeId, (err: any) => {
         if (err) { setWlStatus("❌ " + err.message); return; }
-        setWlStatus("✅ ホワイトリスト登録完了！");
+        setWlStatus("✅ Whitelist registration complete！");
       });
     } catch (e: any) {
       setWlStatus("❌ " + e.message);
@@ -159,7 +159,7 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
       </div>
       {result && (
         <div style={{ marginTop: 12, borderTop: "1px solid #1a2a3a", paddingTop: 12 }}>
-          <div style={{ fontSize: 10, color: "#a78bfa", marginBottom: 6 }}>ホワイトリスト登録</div>
+          <div style={{ fontSize: 10, color: "#a78bfa", marginBottom: 6 }}>Whitelist Registration</div>
           <input className="input-field" placeholder="0x..." value={wlAddress} onChange={e => setWlAddress(e.target.value)} style={{ marginBottom: 6 }} />
           <button onClick={handleWhitelist} style={{ background: "#a78bfa22", border: "1px solid #a78bfa", borderRadius: 6, color: "#a78bfa", fontSize: 11, padding: "6px 12px", cursor: "pointer" }}>
             Add to Whitelist (Circle)

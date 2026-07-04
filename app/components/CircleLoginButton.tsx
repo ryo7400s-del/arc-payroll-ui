@@ -7,7 +7,7 @@ export default function CircleLoginButton() {
   const shortAddr = (addr: string) => addr.slice(0,6)+"..."+addr.slice(-4);
 
   if (isLoading) {
-    return <button className="connect-btn" disabled>⏳ 接続中...</button>;
+    return <button className="connect-btn" disabled>⏳ Connecting...</button>;
   }
 
   if (isConnected && wallet) {
