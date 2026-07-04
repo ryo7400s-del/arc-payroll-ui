@@ -150,7 +150,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
         }),
       }));
 
-      // 1 txTXregister all in
+      // register all in 1 TX
       const hash = await wc.writeContract({
         address: MULTICALL3FROM,
         abi: MULTICALL3FROM_ABI,
@@ -182,7 +182,7 @@ export default function CsvWhitelist({ ownerAddress, scheduler, abi, publicClien
         CSV format: <span style={{color:"#3dd6f5",fontFamily:"DM Mono,monospace"}}>Label, Address</span>
       </div>
       <div style={{fontSize:10,color:"#8ab4cc",marginBottom:12}}>
-        Already registered addresses auto-skipped・all1 txTX registration
+        Already registered addresses are auto-skipped · all in 1 TX
       </div>
       <input type="file" accept=".csv" onChange={handleFile}
         style={{fontSize:11,color:"#8ab4cc",marginBottom:12,display:"block"}}/>

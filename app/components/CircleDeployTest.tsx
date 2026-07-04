@@ -69,7 +69,7 @@ export default function CircleDeployTest({ onDeployed }: { onDeployed?: (addr: s
       alert("Circle Wallet not connected");
       return;
     }
-    const scheduler = result || prompt("ScheduーlerーEnter address:");
+    const scheduler = result || prompt("Enter scheduler address:");
     if (!scheduler) return;
     try {
       setApproveStatus("Approve...");

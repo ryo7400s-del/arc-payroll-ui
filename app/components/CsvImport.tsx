@@ -128,7 +128,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
           await executeSdk(approveData.challengeId);
         }
 
-        // each row: Scheduーle creation（Whitelist: Setting must be pre-registered in Setting tab）
+        // each row: Schedule creation (whitelist must be pre-registered in Setting tab)
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
           setPhase(`Creating schedule ${i+1}/${rows.length}: ${r.label}…`);
@@ -206,7 +206,7 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       await pc.waitForTransactionReceipt({ hash: wlHash });
     }
 
-    // Step3: Scheduーle batch creation（Batch）
+    // Step3: Batch schedule creation
     setPhase(`Creating ${rows.length} schedules (1 TX)…`);
     try {
       const scheduleCalls = rows.map(r => ({
