@@ -339,7 +339,7 @@ export default function ArcPayroll() {
   }, []);
 
   const fetchSchedules = useCallback(async () => {
-    const currentAddr = address || privyAddress;
+    const currentAddr = address || privyAddress || circleWallet?.address;
     if (!currentAddr) return;
     try {
       const rows = await publicClient.readContract({
@@ -353,7 +353,7 @@ export default function ArcPayroll() {
       const wl = await publicClient.readContract({ address:SCHEDULER, abi:SCHEDULER_ABI, functionName:"getWhitelist", args:[currentAddr as `0x${string}`] }) as any[];
       setWhitelistCount(wl.length);
     } catch(e) { console.error(e); }
-  }, [address, SCHEDULER]);
+  }, [address, SCHEDULER, privyAddress, circleWallet]);
 
   useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
 
