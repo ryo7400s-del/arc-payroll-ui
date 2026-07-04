@@ -12,9 +12,16 @@ export default function CircleLoginButton() {
 
   if (isConnected && wallet) {
     return (
-      <button className="disconnect-btn" onClick={logout} title={wallet.address}>
-        ✅ {shortAddr(wallet.address)}
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ fontSize: 10, color: "#a78bfa", fontFamily: "monospace" }}>{shortAddr(wallet.address)}</div>
+        <button
+          onClick={() => navigator.clipboard.writeText(wallet.address)}
+          style={{ background: "none", border: "1px solid #a78bfa", borderRadius: 4, color: "#a78bfa", fontSize: 9, padding: "2px 6px", cursor: "pointer" }}
+        >
+          Copy
+        </button>
+        <button className="disconnect-btn" onClick={logout}>✕</button>
+      </div>
     );
   }
 

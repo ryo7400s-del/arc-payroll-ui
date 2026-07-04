@@ -790,7 +790,7 @@ export default function ArcPayroll() {
                 On-Chain Schedules
                 <button onClick={fetchSchedules} style={{marginLeft:12,background:"none",border:"1px solid #1a2a3a",color:"#3dd6f5",fontSize:9,padding:"2px 8px",borderRadius:3,cursor:"pointer"}}>↻ Refresh</button>
               </div>
-              {!address && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
+              {!(address || privyAddress || circleWallet?.address) && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
               {(address || privyAddress) && schedules.length===0 && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
               {(address || privyAddress) && schedules.length>0 && (
                 <>
