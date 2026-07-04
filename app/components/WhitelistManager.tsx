@@ -8,11 +8,15 @@ const arcTestnet = {
   rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}
 } as const;
 
-export default function WhitelistManager({ address, scheduler, abi, publicClient }: {
+export default function WhitelistManager({ address, scheduler, abi, publicClient, isCircleConnected, circleUserToken, circleWalletId, circleEncryptionKey }: {
   address: string;
   scheduler: `0x${string}`;
   abi: any;
   publicClient: any;
+  isCircleConnected?: boolean;
+  circleUserToken?: string;
+  circleWalletId?: string;
+  circleEncryptionKey?: string;
 }) {
   const [members, setMembers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,6 +37,29 @@ export default function WhitelistManager({ address, scheduler, abi, publicClient
   useEffect(() => { fetchWhitelist(); }, [address, scheduler]);
 
   const handleRemove = async (addr: string) => {
+    if (isCircleConnected && circleUserToken && circleWalletId && circleEncryptionKey) {
+      try {
+        const res = await fetch("/api/circle-remove-whitelist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userToken: circleUserToken, walletId: circleWalletId, schedulerAddress: scheduler, targetAddress: addr }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+        const sdk = new W3SSdk();
+        sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+        sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey });
+        sdk.execute(data.challengeId, (err: any) => {
+          if (err) { alert("Failed: " + err.message); return; }
+          alert("✅ Removed: " + addr);
+          fetchWhitelist();
+        });
+      } catch(e:any) { alert("Failed: " + e.message); }
+      return;
+    }
+
     if (!(window as any).ethereum) return;
     const wc = createWalletClient({ account: address as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
     try {
