@@ -791,8 +791,8 @@ export default function ArcPayroll() {
                 <button onClick={fetchSchedules} style={{marginLeft:12,background:"none",border:"1px solid #1a2a3a",color:"#3dd6f5",fontSize:9,padding:"2px 8px",borderRadius:3,cursor:"pointer"}}>↻ Refresh</button>
               </div>
               {!(address || privyAddress || circleWallet?.address) && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>Connect wallet to view schedules</div>}
-              {(address || privyAddress) && schedules.length===0 && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
-              {(address || privyAddress) && schedules.length>0 && (
+              {(address || privyAddress || circleWallet?.address) && schedules.length===0 && <div style={{color:"#8ab4cc",fontSize:12,padding:"20px 0",textAlign:"center"}}>No schedules yet — create one in Dashboard</div>}
+              {(address || privyAddress || circleWallet?.address) && schedules.length>0 && (
                 <>
                   <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 80px 80px 70px 90px",gap:10,padding:"6px 14px",fontSize:10,color:"#8ab4cc",marginBottom:4}}>
                     <span>Recipient</span><span>Label</span><span>Amount</span><span>Interval</span><span>Status</span><span>Action</span>
