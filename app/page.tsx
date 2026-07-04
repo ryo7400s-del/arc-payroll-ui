@@ -722,6 +722,30 @@ export default function ArcPayroll() {
                 <button className="submit-btn" onClick={async()=>{
                   const addr=(document.getElementById("wl-input") as HTMLInputElement).value;
                   if(!addr) return;
+
+                  // Circle ウォレット専用フロー
+                  if (isCircleConnected && circleUserToken && circleWallet?.id && circleEncryptionKey) {
+                    try {
+                      const res = await fetch("/api/circle-whitelist-batch", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ userToken: circleUserToken, walletId: circleWallet.id, schedulerAddress: SCHEDULER, targetAddress: addr }),
+                      });
+                      const data = await res.json();
+                      if (data.error) throw new Error(data.error);
+
+                      const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+                      const sdk = new W3SSdk();
+                      sdk.setAppSettings({ appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID! });
+                      sdk.setAuthentication({ userToken: circleUserToken, encryptionKey: circleEncryptionKey });
+                      sdk.execute(data.challengeId, (err: any) => {
+                        if (err) { alert("Failed: " + err.message); return; }
+                        alert("✅ Whitelisted! " + addr);
+                      });
+                    } catch(e:any) { alert("Failed: " + e.message); }
+                    return;
+                  }
+
                   const currentAddress = (address || privyAddress) as `0x${string}`;
                   if(!currentAddress) return;
                   try{
@@ -739,7 +763,7 @@ export default function ArcPayroll() {
                     await publicClient.waitForTransactionReceipt({hash:h});
                     alert("✅ Whitelisted! " + addr);
                   }catch(e:any){alert("Failed: "+e.message);}
-                }}>Add to Whitelist 2192</button>
+                }}>Add to Whitelist</button>
               </div>
               <div className="card" style={{marginTop:16}}>
                 <div style={{fontSize:10,letterSpacing:".14em",color:"#2e6080",textTransform:"uppercase",marginBottom:12}}>Whitelist Members</div>
