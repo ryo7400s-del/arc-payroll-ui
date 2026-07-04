@@ -10,6 +10,7 @@ import PrivyLoginButton from "./components/PrivyLoginButton";
 import { usePrivyWallet } from "@/lib/privy/PrivyWalletContext";
 import CircleDeployTest from "./components/CircleDeployTest";
 import WalletWithdraw from "./components/WalletWithdraw";
+import VerifiedReport from "./components/VerifiedReport";
 import CircleLoginButton from "./components/CircleLoginButton";
 import { useCircleWallet } from "@/lib/circle/CircleWalletContext";
 import { useWallets } from "@privy-io/react-auth";
@@ -875,6 +876,7 @@ export default function ArcPayroll() {
             </div>
 
             <TxHistory address={(address || privyAddress || circleWallet?.address) as string} scheduler={SCHEDULER} publicClient={publicClient} />
+            <VerifiedReport address={(address || privyAddress || circleWallet?.address || "") as string} />
           </div>
         )}
 
