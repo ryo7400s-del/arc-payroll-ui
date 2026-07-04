@@ -832,7 +832,7 @@ export default function ArcPayroll() {
             <div style={{marginTop:14,padding:"10px 14px",border:"1px solid #0e1b28",borderRadius:5,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             </div>
 
-            <TxHistory address={address} scheduler={SCHEDULER} publicClient={publicClient} />
+            <TxHistory address={(address || privyAddress || circleWallet?.address) as string} scheduler={SCHEDULER} publicClient={publicClient} />
           </div>
         )}
 
