@@ -33,6 +33,18 @@ export default function TxHistory({ address, scheduler, publicClient }: {
   const fetchHistory = async () => {
     setLoading(true);
     try {
+      // KV に保存された永続履歴を取得
+      const kvRes = await fetch(`/api/get-execution-history?owner=${address}`);
+      const kvData = await kvRes.json();
+      const kvItems: TxItem[] = (kvData.items || []).map((r: any) => ({
+        type: "schedule" as const,
+        from: r.owner,
+        to: r.recipient,
+        amount: r.amount,
+        txHash: r.txHash,
+        blockNumber: "0",
+      }));
+
       const latestBlock = await publicClient.getBlockNumber();
       const [scheduleLogs, x402Logs] = await Promise.all([
         publicClient.getLogs({
@@ -84,10 +96,14 @@ export default function TxHistory({ address, scheduler, publicClient }: {
           txHash: log.transactionHash,
           blockNumber: log.blockNumber.toString(),
         })),
-      ].sort((a, b) => Number(BigInt(b.blockNumber) - BigInt(a.blockNumber)));
+      ];
 
-      setTxs(items);
-    } catch(e) { console.error(e); }
+      // KV とオンチェーンの重複を txHash で除去してマージ
+      const seen = new Set(items.map(i => i.txHash));
+      const merged = [...items, ...kvItems.filter(i => !seen.has(i.txHash))];
+
+      setTxs(merged);
+    } catch(e) { console.error("[TxHistory] ERROR:", e); }
     setLoading(false);
   };
 
