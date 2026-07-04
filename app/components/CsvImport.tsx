@@ -128,20 +128,9 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
           await executeSdk(approveData.challengeId);
         }
 
-        // 各行: ホワイトリスト → スケジュール作成
+        // 各行: スケジュール作成（ホワイトリストは Setting タブで事前登録すること）
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
-          setPhase(`Whitelisting ${i+1}/${rows.length}: ${r.label}…`);
-          const wlRes = await fetch("/api/circle-whitelist-batch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userToken: circleUserToken, walletId: circleWalletId, schedulerAddress: scheduler, targetAddress: r.to }),
-          });
-          const wlData = await wlRes.json();
-          if (!wlData.error) {
-            await executeSdk(wlData.challengeId);
-          }
-
           setPhase(`Creating schedule ${i+1}/${rows.length}: ${r.label}…`);
           const schedRes = await fetch("/api/circle-schedule", {
             method: "POST",
