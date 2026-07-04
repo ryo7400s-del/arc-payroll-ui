@@ -8,7 +8,7 @@ const arcTestnet = {
   rpcUrls:{default:{http:["https://rpc.testnet.arc.network"]}}
 } as const;
 
-export default function WhitelistManager({ address, scheduler, abi, publicClient, isCircleConnected, circleUserToken, circleWalletId, circleEncryptionKey }: {
+export default function WhitelistManager({ address, scheduler, abi, publicClient, isCircleConnected, circleUserToken, circleWalletId, circleEncryptionKey, isPrivyConnected, privyWallets }: {
   address: string;
   scheduler: `0x${string}`;
   abi: any;
@@ -17,6 +17,8 @@ export default function WhitelistManager({ address, scheduler, abi, publicClient
   circleUserToken?: string;
   circleWalletId?: string;
   circleEncryptionKey?: string;
+  isPrivyConnected?: boolean;
+  privyWallets?: any[];
 }) {
   const [members, setMembers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,9 +62,18 @@ export default function WhitelistManager({ address, scheduler, abi, publicClient
       return;
     }
 
-    if (!(window as any).ethereum) return;
-    const wc = createWalletClient({ account: address as `0x${string}`, chain: arcTestnet, transport: custom((window as any).ethereum) });
     try {
+      let eip1193: any;
+      if (isPrivyConnected && privyWallets) {
+        const embWallet = privyWallets.find((w: any) => w.walletClientType === "privy");
+        if (!embWallet) { alert("Privy wallet not found"); return; }
+        await embWallet.switchChain(5042002);
+        eip1193 = await embWallet.getEthereumProvider();
+      } else {
+        if (!(window as any).ethereum) return;
+        eip1193 = (window as any).ethereum;
+      }
+      const wc = createWalletClient({ account: address as `0x${string}`, chain: arcTestnet, transport: custom(eip1193) });
       const h = await wc.writeContract({ address: scheduler, abi, functionName: "removeFromWhitelist", args: [addr as `0x${string}`] });
       await publicClient.waitForTransactionReceipt({ hash: h });
       alert("✅ Removed: " + addr);
