@@ -1,6 +1,12 @@
 "use client";
 import { useState } from "react";
 
+type SwapInfo = {
+  usdcIn: string;
+  eurcOut: string;
+  rate: number;
+} | null;
+
 type VerifiedItem = {
   owner: string;
   recipient: string;
@@ -11,6 +17,7 @@ type VerifiedItem = {
   timestamp: number;
   blockNumber: string;
   verified: true;
+  swapInfo?: SwapInfo;
 };
 
 type FailedItem = {
@@ -44,12 +51,14 @@ export default function VerifiedReport({ address }: { address: string }) {
 
   const downloadCSV = () => {
     const rows = [
-      ["Date", "Recipient", "Label", "Amount (USDC)", "TX Hash", "Block", "ArcScan Link"],
+      ["Date", "Recipient", "Label", "Amount Sent (USDC)", "EURC Received", "Swap Rate (EURC/USDC)", "TX Hash", "Block", "ArcScan Link"],
       ...verified.map(v => [
         new Date(v.timestamp).toISOString(),
         v.recipient,
         v.label,
         (Number(v.amount) / 1e6).toFixed(2),
+        v.swapInfo ? (Number(v.swapInfo.eurcOut) / 1e6).toFixed(6) : "-",
+        v.swapInfo ? v.swapInfo.rate.toFixed(6) : "-",
         v.txHash,
         v.blockNumber,
         `https://testnet.arcscan.app/tx/${v.txHash}`,
@@ -125,12 +134,19 @@ export default function VerifiedReport({ address }: { address: string }) {
           {verified.length > 0 && (
             <div style={{ maxHeight: 300, overflowY: "auto" }}>
               {verified.map((v, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #0e1b28", fontSize: 11 }}>
-                  <span style={{ color: "#8ab4cc" }}>{v.label}</span>
-                  <span style={{ color: "#3dd6f5" }}>{(Number(v.amount) / 1e6).toFixed(2)} USDC</span>
-                  <a href={`https://testnet.arcscan.app/tx/${v.txHash}`} target="_blank" rel="noreferrer" style={{ color: "#00e5a0", fontSize: 9 }}>
-                    Verify ↗
-                  </a>
+                <div key={i} style={{ padding: "8px 0", borderBottom: "1px solid #0e1b28" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                    <span style={{ color: "#8ab4cc" }}>{v.label}</span>
+                    <span style={{ color: "#3dd6f5" }}>{(Number(v.amount) / 1e6).toFixed(2)} USDC</span>
+                    <a href={`https://testnet.arcscan.app/tx/${v.txHash}`} target="_blank" rel="noreferrer" style={{ color: "#00e5a0", fontSize: 9 }}>
+                      Verify ↗
+                    </a>
+                  </div>
+                  {v.swapInfo && (
+                    <div style={{ fontSize: 9, color: "#a78bfa", marginTop: 3 }}>
+                      → {(Number(v.swapInfo.eurcOut) / 1e6).toFixed(6)} EURC @ rate {v.swapInfo.rate.toFixed(6)}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
