@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
             idempotencyKey: crypto.randomUUID(),
             userToken,
             blockchains: ["ARC-TESTNET"],
-            accountType: "SCA",
+            accountType: "EOA",
           }),
         });
 
