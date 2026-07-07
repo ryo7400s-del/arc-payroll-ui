@@ -187,7 +187,8 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       await pc.waitForTransactionReceipt({ hash: ah });
     }
 
-    // Step2: Check unregistered addresses and batch register
+    // Step2: Check whitelist status — NOT whitelisted rows are skipped, never auto-registered here.
+    // Whitelisting must be done explicitly in the Setting tab (single or CSV whitelist import).
     setPhase("Checking whitelist…");
     const notWhitelisted: number[] = [];
     for (let i = 0; i < rows.length; i++) {
@@ -196,20 +197,28 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
     }
 
     if (notWhitelisted.length > 0) {
-      setPhase(`Whitelisting ${notWhitelisted.length} addresses (1 TX)…`);
-      const wlCalls = notWhitelisted.map(i => ({
-        target: scheduler,
-        allowFailure: false,
-        callData: encodeFunctionData({ abi, functionName: "addToWhitelist", args: [rows[i].to as `0x${string}`] }),
-      }));
-      const wlHash = await wc.writeContract({ address: MULTICALL3FROM, abi: MULTICALL3FROM_ABI, functionName: "aggregate3", args: [wlCalls] });
-      await pc.waitForTransactionReceipt({ hash: wlHash });
+      setRows(prev => prev.map((r, idx) =>
+        notWhitelisted.includes(idx)
+          ? { ...r, status: "error", error: "Not whitelisted — add in Setting tab first" }
+          : r
+      ));
     }
 
-    // Step3: Batch schedule creation
-    setPhase(`Creating ${rows.length} schedules (1 TX)…`);
+    const scheduleRows = rows
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ idx }) => !notWhitelisted.includes(idx));
+
+    if (scheduleRows.length === 0) {
+      setPhase("");
+      setRunning(false);
+      setDone(true);
+      return;
+    }
+
+    // Step3: Batch schedule creation (whitelisted rows only)
+    setPhase(`Creating ${scheduleRows.length} schedules (1 TX)…`);
     try {
-      const scheduleCalls = rows.map(r => ({
+      const scheduleCalls = scheduleRows.map(({ r }) => ({
         target: scheduler,
         allowFailure: false,
         callData: encodeFunctionData({
@@ -219,9 +228,11 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       }));
       const hash = await wc.writeContract({ address: MULTICALL3FROM, abi: MULTICALL3FROM_ABI, functionName: "aggregate3", args: [scheduleCalls] });
       await pc.waitForTransactionReceipt({ hash });
-      setRows(prev => prev.map(r => ({ ...r, status: "success" })));
+      const successIdx = new Set(scheduleRows.map(({ idx }) => idx));
+      setRows(prev => prev.map((r, idx) => successIdx.has(idx) ? { ...r, status: "success" } : r));
     } catch(e: any) {
-      setRows(prev => prev.map(r => ({ ...r, status: "error", error: e.message?.slice(0,50) })));
+      const targetIdx = new Set(scheduleRows.map(({ idx }) => idx));
+      setRows(prev => prev.map((r, idx) => targetIdx.has(idx) ? { ...r, status: "error", error: e.message?.slice(0,50) } : r));
     }
 
     setPhase("");
