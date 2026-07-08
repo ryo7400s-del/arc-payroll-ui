@@ -397,7 +397,7 @@ export default function ArcPayroll() {
     try {
       const fe = form.firstExecution ? BigInt(Math.floor(new Date(form.firstExecution).getTime()/1000)) : 0n;
 
-      if (isCircleConnected && circleUserToken && circleWallet?.id && circleEncryptionKey) {
+      alert("DEBUG: isCircleConnected=" + isCircleConnected + " address=" + address + " privyAddress=" + privyAddress + " circleWallet=" + JSON.stringify(circleWallet));
         const executeSdk = async (challengeId: string) => {
           const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
           const sdk = new W3SSdk();
