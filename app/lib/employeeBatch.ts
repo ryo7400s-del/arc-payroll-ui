@@ -111,6 +111,7 @@ export async function addEmployeesBatch(
       wc = createWalletClient({ account: ownerAddress, chain: arcTestnet, transport: custom(provider) });
     }
   }
+  alert("employeeBatch: wc=" + !!wc + " owner=" + ownerAddress + " scheduler=" + scheduler);
   if (!wc) {
     wc = createWalletClient({ account: ownerAddress, chain: arcTestnet, transport: custom((window as any).ethereum) });
   }
@@ -131,6 +132,7 @@ export async function addEmployeesBatch(
     const emp = employees[i];
     try {
       onProgress?.(i, "scheduling");
+      alert("about to writeContract for: " + emp.label);
       const sh = await wc.writeContract({
         address: scheduler, abi, functionName: "createSchedule",
         args: [emp.to, parseUnits(emp.amount, 6), BigInt(emp.interval), emp.label, emp.firstExecution ?? 0n, emp.useEURC ?? false],
