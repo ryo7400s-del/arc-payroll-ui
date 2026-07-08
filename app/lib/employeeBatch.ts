@@ -21,8 +21,8 @@ export type Employee = {
   useEURC?: boolean;
 };
 
-export type StepStatus = "approving" | "scheduling" | "done" | "error";
-export type ProgressCb = (index: number, status: StepStatus, error?: string, hash?: string) => void;
+export type StepStatus = "approving" | "scheduling" | "done" | "error" | "approve";
+export type ProgressCb = (index: number, status: StepStatus, error?: string, hash?: string, resolve?: () => void, reject?: (e: any) => void) => void;
 
 export async function addEmployeesBatch(
   employees: Employee[],
@@ -40,7 +40,6 @@ export async function addEmployeesBatch(
 ) {
   // Circle ウォレットの場合は contractExecution API を使う
   if (isCircleConnected && circleUserToken && circleWalletId) {
-    // allowance チェック
     const allowanceRes = await fetch("/api/circle-check-allowance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -64,14 +63,15 @@ export async function addEmployeesBatch(
       });
       const approveData = await approveRes.json();
       if (approveData.error) throw new Error(approveData.error);
-// approve challengeId を page.tsx に渡して PIN 入力を待つ
       await new Promise<void>((resolve, reject) => {
         if (onProgress) {
-          (onProgress as any)(-1, "approve", undefined, approveData.challengeId, resolve, reject);
+          onProgress(-1, "approve", undefined, approveData.challengeId, resolve, reject);
         } else {
           resolve();
         }
       });
+    }
+
     for (let i = 0; i < employees.length; i++) {
       const emp = employees[i];
       try {
@@ -102,6 +102,7 @@ export async function addEmployeesBatch(
     return;
   }
 
+  // MetaMask / Privy フロー
   let wc;
   if (isPrivyConnected && privyWallets) {
     const embWallet = privyWallets.find((w: any) => w.walletClientType === "privy");
@@ -111,7 +112,6 @@ export async function addEmployeesBatch(
       wc = createWalletClient({ account: ownerAddress, chain: arcTestnet, transport: custom(provider) });
     }
   }
-  alert("employeeBatch: wc=" + !!wc + " owner=" + ownerAddress + " scheduler=" + scheduler);
   if (!wc) {
     wc = createWalletClient({ account: ownerAddress, chain: arcTestnet, transport: custom((window as any).ethereum) });
   }
@@ -132,7 +132,6 @@ export async function addEmployeesBatch(
     const emp = employees[i];
     try {
       onProgress?.(i, "scheduling");
-      alert("about to writeContract for: " + emp.label);
       const sh = await wc.writeContract({
         address: scheduler, abi, functionName: "createSchedule",
         args: [emp.to, parseUnits(emp.amount, 6), BigInt(emp.interval), emp.label, emp.firstExecution ?? 0n, emp.useEURC ?? false],
@@ -144,5 +143,4 @@ export async function addEmployeesBatch(
       onProgress?.(i, "error", e.message?.slice(0, 100));
     }
   }
-}
 }
