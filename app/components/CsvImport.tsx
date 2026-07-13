@@ -59,7 +59,13 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
           const t = new Date(); t.setUTCHours(0,0,0,0);
           if (d === "today") firstExecution = BigInt(Math.floor(t.getTime()/1000));
           else if (d === "tomorrow") { t.setUTCDate(t.getUTCDate()+1); firstExecution = BigInt(Math.floor(t.getTime()/1000)); }
-          else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) firstExecution = BigInt(Math.floor(new Date(dateStr).getTime()/1000));
+          else if (/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(dateStr)) {
+            const normalized = dateStr.replace(/\//g, "-");
+            const parts = normalized.split("-").map(p => p.padStart(2, "0"));
+            const isoDate = `${parts[0]}-${parts[1]}-${parts[2]}`;
+            const parsedDate = new Date(isoDate + "T00:00:00Z");
+            if (!isNaN(parsedDate.getTime())) firstExecution = BigInt(Math.floor(parsedDate.getTime()/1000));
+          }
         }
         return {
           label: label || "Employee", to: to || "", amount: amount || "0",
