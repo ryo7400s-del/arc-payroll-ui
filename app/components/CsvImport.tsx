@@ -253,13 +253,13 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
       {rows.length > 0 && (
         <>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12,maxHeight:200,overflowY:"auto"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1.2fr 50px 70px 50px 60px",gap:6,padding:"4px 8px",borderBottom:"1px solid #0e1b28"}}>
-              {["Name","Address","USDC","Interval","Curr","Status"].map(h=>(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1.1fr 45px 65px 45px 75px 55px",gap:6,padding:"4px 8px",borderBottom:"1px solid #0e1b28"}}>
+              {["Name","Address","USDC","Interval","Curr","Date","Status"].map(h=>(
                 <span key={h} style={{fontSize:9,color:"#8ab4cc",textTransform:"uppercase",letterSpacing:".1em"}}>{h}</span>
               ))}
             </div>
             {rows.map((r, i) => (
-              <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1.2fr 50px 70px 50px 60px",gap:6,padding:"6px 8px",background:"#070e18",borderRadius:4,border:"1px solid #0e1b28",alignItems:"center"}}>
+              <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1.1fr 45px 65px 45px 75px 55px",gap:6,padding:"6px 8px",background:"#070e18",borderRadius:4,border:"1px solid #0e1b28",alignItems:"center"}}>
                 <span style={{fontSize:11,color:"#8ab4cc"}}>{r.label}</span>
                 <span style={{fontSize:10,color:"#3dd6f5",fontFamily:"DM Mono,monospace",display:"flex",alignItems:"center",gap:4}}>
                   {r.to.slice(0,8)}…
@@ -270,6 +270,9 @@ export default function CsvImport({ address, scheduler, abi, getPrivyProvider, p
                 <span style={{fontSize:11,color:"#00e5a0"}}>{r.amount}</span>
                 <span style={{fontSize:10,color:"#a78bfa"}}>{r.interval===604800?"Weekly":r.interval===1209600?"Bi-weekly":r.interval===2592000?"Monthly":"Quarterly"}</span>
                 <span style={{fontSize:10,color:r.useEURC?"#a78bfa":"#3dd6f5"}}>{r.useEURC?"EURC":"USDC"}</span>
+                <span style={{fontSize:9,color:"#8ab4cc"}}>
+                  {r.firstExecution ? new Date(Number(r.firstExecution)*1000).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "ASAP"}
+                </span>
                 <span style={{fontSize:9,color:r.status==="success"?"#00e5a0":r.status==="error"?"#ff4d6d":"#8ab4cc"}}>
                   {r.status==="success"?"✓":r.status==="error"?"✗ "+(r.error||""):"…"}
                 </span>
