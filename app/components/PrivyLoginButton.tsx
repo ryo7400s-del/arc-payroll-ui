@@ -33,7 +33,7 @@ export default function PrivyLoginButton() {
       onClick={login}
       style={{ background: "#a78bfa22", border: "1px solid #a78bfa", borderRadius: 6, color: "#a78bfa", fontSize: 11, padding: "6px 12px", cursor: "pointer" }}
     >
-      Google Login
+      Privy Wallet
     </button>
   );
 }
