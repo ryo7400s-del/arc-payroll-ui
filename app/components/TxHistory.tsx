@@ -40,7 +40,7 @@ export default function TxHistory({ address, scheduler, publicClient }: {
         type: "schedule" as const,
         from: r.owner,
         to: r.recipient,
-        amount: r.amount,
+        amount: (Number(r.amount) / 1e6).toFixed(2),
         txHash: r.txHash,
         blockNumber: "0",
       }));
@@ -137,9 +137,9 @@ export default function TxHistory({ address, scheduler, publicClient }: {
               <span style={{fontSize:10,color:tx.type==="x402"?"#a78bfa":"#3dd6f5",padding:"2px 6px",background:tx.type==="x402"?"#a78bfa18":"#3dd6f518",borderRadius:3,textAlign:"center"}}>
                 {tx.type==="x402"?"x402":"AUTO"}
               </span>
-              <span style={{fontSize:11,color:"#8ab4cc",fontFamily:"DM Mono,monospace"}}>{short(tx.from)}</span>
-              <span style={{fontSize:11,color:"#8ab4cc",fontFamily:"DM Mono,monospace"}}>{short(tx.to)}</span>
-              <span style={{fontSize:11,color:"#00e5a0",fontVariantNumeric:"tabular-nums"}}>{tx.from.toLowerCase() === address.toLowerCase() ? tx.amount : "****"}</span>
+              <span style={{fontSize:11,color:"#8ab4cc",fontFamily:"DM Mono,monospace",whiteSpace:"nowrap",overflow:"hidden"}}>{short(tx.from)}</span>
+              <span style={{fontSize:11,color:"#8ab4cc",fontFamily:"DM Mono,monospace",whiteSpace:"nowrap",overflow:"hidden"}}>{short(tx.to)}</span>
+              <span style={{fontSize:11,color:"#00e5a0",fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{tx.from.toLowerCase() === address.toLowerCase() ? tx.amount : "****"}</span>
               <a href={`https://testnet.arcscan.app/tx/${tx.txHash}`} target="_blank" rel="noreferrer"
                 style={{fontSize:10,color:"#3dd6f5",textDecoration:"none"}}>↗ View</a>
             </div>
